@@ -5867,7 +5867,27 @@ static void sec_qpnp_cable_initial_check(struct sec_charger_info *charger)
 	}
 }
 #endif
+#if defined(CONFIG_SEC_ATLANTIC_PROJECT)
+static struct qpnp_chg_chip    * chg_chip;
+void change_boost_control(int on)
+{
+	u8 val_bat_reg;
+	if (!chg_chip)
+		return;
+	if(on) {
+		val_bat_reg = 0x0F;
+		qpnp_chg_write(chg_chip, &val_bat_reg, 0x1573, 1);
+		val_bat_reg = 0x03;
+		qpnp_chg_write(chg_chip, &val_bat_reg, 0x1576, 1);
+	} else {
+		val_bat_reg = 0x03;
+		qpnp_chg_write(chg_chip, &val_bat_reg, 0x1573, 1);
+		val_bat_reg = 0x01;
+		qpnp_chg_write(chg_chip, &val_bat_reg, 0x1576, 1);
+	}
 
+}
+#endif
 static int __devinit
 qpnp_charger_probe(struct spmi_device *spmi)
 {
