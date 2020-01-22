@@ -667,7 +667,7 @@ int32_t sr130pc20_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 void sr130pc20_set_default_settings(void)
 {
 	sr130pc20_ctrl.settings.metering = CAMERA_CENTER_WEIGHT;
-	sr130pc20_ctrl.settings.exposure = CAMERA_EV_DEFAULT;
+	sr130pc20_ctrl.settings.exposure = CAMERA_EV_M4;
 	sr130pc20_ctrl.settings.wb = CAMERA_WHITE_BALANCE_AUTO;
 	sr130pc20_ctrl.settings.iso = CAMERA_ISO_MODE_AUTO;
 	sr130pc20_ctrl.settings.effect = CAMERA_EFFECT_OFF;
