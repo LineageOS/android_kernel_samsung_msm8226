@@ -1029,6 +1029,11 @@ static int sm5502_attach_dev(struct sm5502_usbsw *usbsw)
 	int val1, val2, val3, val4, vbus;
 	struct sm5502_platform_data *pdata = usbsw->pdata;
 	struct i2c_client *client = usbsw->client;
+#if defined(CONFIG_USB_HOST_NOTIFY)
+#if defined(CONFIG_SEC_ATLANTIC_PROJECT) || defined(CONFIG_MACH_S3VE3G_EUR)
+	struct regulator *otg_regulator = regulator_get(NULL, "8226_smbbp_otg");
+#endif
+#endif
 #if defined(CONFIG_VIDEO_MHL_V2)
 	/*u8 mhl_ret = 0;*/
 #endif
@@ -1157,6 +1162,11 @@ static int sm5502_attach_dev(struct sm5502_usbsw *usbsw)
 #endif
 		sm5502_set_otg(usbsw, SM5502_ATTACHED);
 		pdata->callback(CABLE_TYPE_OTG, SM5502_ATTACHED);
+#if defined(CONFIG_SEC_ATLANTIC_PROJECT) || defined(CONFIG_MACH_S3VE3G_EUR)
+		if (!regulator_is_enabled(otg_regulator)) {
+			regulator_enable(otg_regulator);
+		}
+#endif
 #endif
 	/* JIG */
 	} else if (val2 & DEV_T2_USB_MASK) {
@@ -1270,6 +1280,11 @@ static int sm5502_attach_dev(struct sm5502_usbsw *usbsw)
 static int sm5502_detach_dev(struct sm5502_usbsw *usbsw)
 {
 	struct sm5502_platform_data *pdata = usbsw->pdata;
+#if defined(CONFIG_USB_HOST_NOTIFY)
+#if defined(CONFIG_SEC_ATLANTIC_PROJECT) || defined(CONFIG_MACH_S3VE3G_EUR)
+	struct regulator *otg_regulator = regulator_get(NULL, "8226_smbbp_otg");
+#endif
+#endif
 #if defined(CONFIG_TOUCHSCREEN_MMS144)
 	int tsp_noti_ignore = 0;
 
@@ -1340,6 +1355,11 @@ static int sm5502_detach_dev(struct sm5502_usbsw *usbsw)
 #else
 		sm5502_set_otg(usbsw, SM5502_DETACHED);
 		pdata->callback(CABLE_TYPE_OTG, SM5502_DETACHED);
+#endif
+#if defined(CONFIG_SEC_ATLANTIC_PROJECT) || defined(CONFIG_MACH_S3VE3G_EUR)
+		if (regulator_is_enabled(otg_regulator)) {
+			regulator_disable(otg_regulator);
+		}
 #endif
 #endif
 	/* JIG */
