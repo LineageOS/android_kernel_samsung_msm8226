@@ -1177,6 +1177,10 @@ int mdss_hw_init(struct mdss_data_type *mdata)
 	mdata->mdp_rev = MDSS_MDP_REG_READ(MDSS_MDP_REG_HW_VERSION);
 	pr_info_once("MDP Rev=%x\n", mdata->mdp_rev);
 
+	/* disable hw underrun recovery */
+	writel_relaxed(0x0, mdata->mdp_base +
+			MDSS_MDP_REG_VIDEO_INTF_UNDERFLOW_CTL);
+
 	if (mdata->hw_settings) {
 		struct mdss_hw_settings *hws = mdata->hw_settings;
 
@@ -1259,12 +1263,16 @@ static u32 mdss_mdp_res_init(struct mdss_data_type *mdata)
  */
 void mdss_mdp_footswitch_ctrl_splash(int on)
 {
+	int ret;
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	if (mdata != NULL) {
 		if (on) {
 			pr_debug("Enable MDP FS for splash.\n");
 			mdata->handoff_pending = true;
-			regulator_enable(mdata->fs);
+			ret = regulator_enable(mdata->fs);
+			if (ret)
+				pr_err("Footswitch failed to enable\n");
+
 			mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
 			mdss_hw_init(mdata);
 		} else {
@@ -2750,13 +2758,16 @@ void mdss_mdp_batfet_ctrl(struct mdss_data_type *mdata, int enable)
 
 static void mdss_mdp_footswitch_ctrl(struct mdss_data_type *mdata, int on)
 {
+	int ret;
 	if (!mdata->fs)
 		return;
 
 	if (on) {
 		pr_debug("Enable MDP FS\n");
 		if (!mdata->fs_ena) {
-			regulator_enable(mdata->fs);
+			ret = regulator_enable(mdata->fs);
+			if (ret)
+				pr_warn("Footswitch failed to enable\n");
 			if (!mdata->idle_pc) {
 				mdss_mdp_cx_ctrl(mdata, true);
 				mdss_mdp_batfet_ctrl(mdata, true);
@@ -2766,11 +2777,11 @@ static void mdss_mdp_footswitch_ctrl(struct mdss_data_type *mdata, int on)
 	} else {
 		pr_debug("Disable MDP FS\n");
 		if (mdata->fs_ena) {
-			regulator_disable(mdata->fs);
 			if (!mdata->idle_pc) {
 				mdss_mdp_cx_ctrl(mdata, false);
 				mdss_mdp_batfet_ctrl(mdata, false);
 			}
+			regulator_disable(mdata->fs);
 		}
 		mdata->fs_ena = false;
 	}
@@ -2873,6 +2884,15 @@ static int mdss_mdp_pm_resume(struct device *dev)
 		return -ENODEV;
 
 	dev_dbg(dev, "display pm resume\n");
+
+	/*
+	 * It is possible that the runtime status of the mdp device may
+	 * have been active when the system was suspended. Reset the runtime
+	 * status to suspended state after a complete system resume.
+	 */
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_enable(dev);
 
 	return mdss_mdp_resume_sub(mdata);
 }

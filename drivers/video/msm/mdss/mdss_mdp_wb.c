@@ -95,7 +95,7 @@ struct mdss_mdp_data *mdss_mdp_wb_debug_buffer(struct msm_fb_data_type *mfd)
 				 ION_HEAP(ION_SF_HEAP_ID), 0);
 		if (IS_ERR_OR_NULL(ihdl)) {
 			pr_err("unable to alloc fbmem from ion (%pK)\n", ihdl);
-			return ERR_PTR(PTR_ERR(ihdl));;
+			return ERR_PTR(PTR_ERR(ihdl));
 		}
 
 		videomemory = ion_map_kernel(iclient, ihdl);

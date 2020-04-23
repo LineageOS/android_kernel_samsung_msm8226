@@ -2086,7 +2086,9 @@ static int mdp3_panel_register_done(struct mdss_panel_data *pdata)
 	 * continue splash screen. This would have happened in
 	 * res_update in continuous_splash_on without this flag.
 	 */
-	mdp3_res->allow_iommu_update = true;
+	if (pdata->panel_info.cont_splash_enabled == false)
+		mdp3_res->allow_iommu_update = true;
+
 	return rc;
 }
 

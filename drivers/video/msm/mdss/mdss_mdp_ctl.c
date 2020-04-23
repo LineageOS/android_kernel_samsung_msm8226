@@ -2757,25 +2757,23 @@ int mdss_mdp_display_commit(struct mdss_mdp_ctl *ctl, void *arg)
 		mdp5_data = mfd_to_mdp5_data(ctl->mfd);
 
 	if (mdp5_data) {
-	  		mutex_lock(&mdp5_data->list_lock);
-			if (csc_change == 1) {
-		  			struct mdss_mdp_pipe *pipe, *next;
-#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
+		if (csc_change == 1) {
+			struct mdss_mdp_pipe *pipe, *next;
+			mutex_lock(&mdp5_data->list_lock);
+			list_for_each_entry_safe(pipe, next, &mdp5_data->pipes_used, list) {
+				if (pipe->type == MDSS_MDP_PIPE_TYPE_VIG) {
 					if (ctl->wait_video_pingpong) {
-							mdss_mdp_irq_enable(MDSS_MDP_IRQ_PING_PONG_COMP, ctl->num);
-			  				ctl->wait_video_pingpong(ctl, NULL);
+						mdss_mdp_irq_enable(MDSS_MDP_IRQ_PING_PONG_COMP, ctl->num);
+						ctl->wait_video_pingpong(ctl, NULL);
 					}
-#endif
-					list_for_each_entry_safe(pipe, next, &mdp5_data->pipes_used, list) {
-		  				if (pipe->type == MDSS_MDP_PIPE_TYPE_VIG) {
-		  					pr_info(" mdss_mdp_csc_setup start\n");
-							mdss_mdp_csc_setup(MDSS_MDP_BLOCK_SSPP, pipe->num, 1,
-				 									MDSS_MDP_CSC_YUV2RGB);
-							csc_change = 0;
-						}
-					}
+					pr_info(" mdss_mdp_csc_setup start\n");
+					mdss_mdp_csc_setup(MDSS_MDP_BLOCK_SSPP, pipe->num, 1,
+										MDSS_MDP_CSC_YUV2RGB);
+					csc_change = 0;
+				}
 			}
 			mutex_unlock(&mdp5_data->list_lock);
+		}
 	}
 
 #endif

@@ -903,7 +903,7 @@ error:
 	pdata->panel_info.cont_splash_enabled = 0;
 	return ret;
 }
-#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
+
 static void mdss_mdp_video_pingpong_done(void *arg)
 {
   	struct mdss_mdp_ctl *ctl = arg;
@@ -916,7 +916,8 @@ static void mdss_mdp_video_pingpong_done(void *arg)
 		return;
 	}
 
-	mdss_mdp_irq_disable_nosync(MDSS_MDP_IRQ_PING_PONG_COMP, ctl->num);
+	if(ctl->intf_type == MDSS_INTF_DSI)
+		mdss_mdp_irq_disable_nosync(MDSS_MDP_IRQ_PING_PONG_COMP, ctl->num);
 	complete_all(&ctx->pp_comp);
 }
 static int mdss_mdp_video_wait4pingpong(struct mdss_mdp_ctl *ctl, void *arg)
@@ -924,7 +925,7 @@ static int mdss_mdp_video_wait4pingpong(struct mdss_mdp_ctl *ctl, void *arg)
   	struct mdss_mdp_video_ctx *ctx;
 	int rc = 0;
 	ctx = (struct mdss_mdp_video_ctx *) ctl->priv_data;
-	pr_info("%s:mdss_mdp_isr 1111\n", __func__);
+	pr_info("%s: mdss_mdp_isr ctl->num = %d\n", __func__, ctl->num);
 
 	if (!ctx) {
   		pr_err("invalid ctx\n");
@@ -937,7 +938,7 @@ static int mdss_mdp_video_wait4pingpong(struct mdss_mdp_ctl *ctl, void *arg)
 
 	return rc;
 }
-#endif
+
 int mdss_mdp_video_start(struct mdss_mdp_ctl *ctl)
 {
 	struct mdss_data_type *mdata;
@@ -994,10 +995,9 @@ int mdss_mdp_video_start(struct mdss_mdp_ctl *ctl)
 					mdss_mdp_video_vsync_intr_done, ctl);
 	mdss_mdp_set_intr_callback(MDSS_MDP_IRQ_INTF_UNDER_RUN, ctl->intf_num,
 					mdss_mdp_video_underrun_intr_done, ctl);
-#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
-	mdss_mdp_set_intr_callback(MDSS_MDP_IRQ_PING_PONG_COMP,
-					mixer->num,  mdss_mdp_video_pingpong_done, ctl);
-#endif
+	if(ctl->intf_type == MDSS_INTF_DSI)
+		mdss_mdp_set_intr_callback(MDSS_MDP_IRQ_PING_PONG_COMP,
+					mixer->num, mdss_mdp_video_pingpong_done, ctl);
 
 	dst_bpp = pinfo->fbc.enabled ? (pinfo->fbc.target_bpp) : (pinfo->bpp);
 
@@ -1035,9 +1035,10 @@ int mdss_mdp_video_start(struct mdss_mdp_ctl *ctl)
 	ctl->add_vsync_handler = mdss_mdp_video_add_vsync_handler;
 	ctl->remove_vsync_handler = mdss_mdp_video_remove_vsync_handler;
 	ctl->config_fps_fnc = mdss_mdp_video_config_fps;
-#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
-	ctl->wait_video_pingpong = mdss_mdp_video_wait4pingpong;
-#endif
+	if(ctl->intf_type == MDSS_INTF_DSI)
+		ctl->wait_video_pingpong = mdss_mdp_video_wait4pingpong;
+	else
+		ctl->wait_video_pingpong = NULL;
 
 	return 0;
 }
