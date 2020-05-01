@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -315,8 +315,10 @@ enum RGB_LEDS{
 };
 
 static u8 wled_debug_regs[] = {
+	/* brightness registers */
+	0x40, 0x41, 0x42, 0x43, 0x44, 0x45,
 	/* common registers */
-	0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4d, 0x4e, 0x4f,
+	0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
 	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59,
 	/* LED1 */
 	0x60, 0x61, 0x62, 0x63, 0x66,
@@ -364,6 +366,7 @@ struct pwm_config_data {
 	int	*old_duty_pcts;
 	u8	mode;
 	u8	default_mode;
+	bool pwm_enabled;
 	bool use_blink;
 	bool blinking;
 };
@@ -450,14 +453,10 @@ struct flash_config_data {
 	bool	safety_timer;
 	bool	torch_enable;
 	bool	flash_reg_get;
-#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_SEC_MS01_PROJECT)
 	bool    flash_wa_reg_get;
-#endif
 	bool	flash_on;
 	bool	torch_on;
-#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_SEC_MS01_PROJECT)
 	struct regulator *flash_wa_reg;
-#endif
 #ifndef SAMSUNG_USE_EXTERNAL_CHARGER
 	struct regulator *flash_boost_reg;
 	struct regulator *torch_boost_reg;
@@ -1173,7 +1172,6 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 
 	if (!regulator_on && !led->flash_cfg->flash_on) {
 #ifndef SAMSUNG_USE_EXTERNAL_CHARGER
-#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_SEC_MS01_PROJECT)
 		for (i = 0; i < led->num_leds; i++) {
 			if (led_array[i].flash_cfg->flash_reg_get) {
 				if (led_array[i].flash_cfg->flash_wa_reg_get) {
@@ -1210,55 +1208,15 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 				led->flash_cfg->flash_on = true;
 			}
 			break;
-			}
-#endif
-#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_SEC_MS01_PROJECT)
-		for (i = 0; i < led->num_leds; i++) {
-			if (led_array[i].flash_cfg->flash_reg_get) {
-				rc = regulator_enable(
-					led_array[i].flash_cfg->flash_wa_reg);
-				if (rc) {
-					dev_err(&led->spmi_dev->dev,
-						"Flash_wa regulator enable failed(%d)\n",
-								rc);
-					return rc;
-				}
-				rc = regulator_enable(
-					led_array[i].flash_cfg->\
-					flash_boost_reg);
-				if (rc) {
-					dev_err(&led->spmi_dev->dev,
-						"Regulator enable failed(%d)\n",
-									rc);
-					return rc;
-				}
-				led->flash_cfg->flash_on = true;
-			}
-			break;
-			}
-#endif
-#endif
-	    for (i = 0; i < led->num_leds; i++) {
-#ifdef SAMSUNG_USE_EXTERNAL_CHARGER
-		qpnp_flash_reg_en(led, true);
-#else
-		if (led_array[i].flash_cfg->flash_reg_get) {
-		    rc = regulator_enable(
-			    led_array[i].flash_cfg->\
-			    flash_boost_reg);
-		    if (rc) {
-			dev_err(&led->spmi_dev->dev,
-				"Regulator enable failed(%d)\n",
-				rc);
-			return rc;
-		    }
-#endif
-		    led->flash_cfg->flash_on = true;
-#ifndef SAMSUNG_USE_EXTERNAL_CHARGER
 		}
 #endif
-		break;
+#ifdef SAMSUNG_USE_EXTERNAL_CHARGER
+	    for (i = 0; i < led->num_leds; i++) {
+			qpnp_flash_reg_en(led, true);
+		    led->flash_cfg->flash_on = true;
+			break;
 	    }
+#endif
 	}
 
 	return 0;
@@ -1287,7 +1245,6 @@ regulator_turn_off:
 						"failed(%d)\n", rc);
 					return rc;
 				}
-#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_SEC_MS01_PROJECT)
 				if (led_array[i].flash_cfg->flash_wa_reg_get) {
 					rc = regulator_disable(
 						led_array[i].flash_cfg->
@@ -1300,7 +1257,6 @@ regulator_turn_off:
 						return rc;
 					}
 				}
-#endif
 		    
 #endif
 #ifdef SAMSUNG_USE_EXTERNAL_CHARGER
@@ -1367,9 +1323,6 @@ regulator_turn_off:
     return 0;
 }
 
-#if defined(CONFIG_MACH_S3VE3G_EUR) || defined(CONFIG_SEC_MS01_PROJECT)
-extern void change_boost_control(int on);
-#endif
 static int qpnp_flash_set(struct qpnp_led_data *led)
 {
 	int rc, error;
@@ -1384,9 +1337,6 @@ static int qpnp_flash_set(struct qpnp_led_data *led)
 
 	/* Set led current */
 	if (val > 0) {
-#if defined(CONFIG_MACH_S3VE3G_EUR) || defined(CONFIG_SEC_MS01_PROJECT)
-		change_boost_control(1);
-#endif
 		if (led->flash_cfg->torch_enable) {
 			if (led->flash_cfg->peripheral_subtype ==
 							FLASH_SUBTYPE_DUAL) {
@@ -1573,9 +1523,6 @@ static int qpnp_flash_set(struct qpnp_led_data *led)
 			}
 		}
 	} else {
-#if defined(CONFIG_MACH_S3VE3G_EUR) || defined(CONFIG_MACH_MS01_LTE)
-		change_boost_control(0);
-#endif
 		rc = qpnp_led_masked_write(led,
 			FLASH_LED_STROBE_CTRL(led->base),
 			led->flash_cfg->trigger_flash,
@@ -1889,15 +1836,19 @@ static int qpnp_rgb_set(struct qpnp_led_data *led)
 			return rc;
 		}
 
-		rc = pwm_enable(led->rgb_cfg->pwm_cfg->pwm_dev);
-		if (rc < 0) {
-			dev_err(&led->spmi_dev->dev, "pwm enable failed\n");
-			return rc;
+		if (led->rgb_cfg->pwm_cfg->pwm_enabled) {
+			pwm_disable(led->rgb_cfg->pwm_cfg->pwm_dev);
+			led->rgb_cfg->pwm_cfg->pwm_enabled = 0;
 		}
+
+		rc = pwm_enable(led->rgb_cfg->pwm_cfg->pwm_dev);
+		if (!rc)
+			led->rgb_cfg->pwm_cfg->pwm_enabled = 1;
 	} else {
 		led->rgb_cfg->pwm_cfg->mode =
 			led->rgb_cfg->pwm_cfg->default_mode;
 		pwm_disable(led->rgb_cfg->pwm_cfg->pwm_dev);
+		led->rgb_cfg->pwm_cfg->pwm_enabled = 0;
 		rc = qpnp_led_masked_write(led,
 			RGB_LED_EN_CTL(led->base),
 			led->rgb_cfg->enable, RGB_LED_DISABLE);
@@ -1937,7 +1888,10 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 #else
 	led->cdev.brightness = value;
 #endif
-	schedule_work(&led->work);
+	if (led->in_order_command_processing)
+		queue_work(led->workqueue, &led->work);
+	else
+		schedule_work(&led->work);
 }
 
 static void __qpnp_led_work(struct qpnp_led_data *led,
@@ -2109,7 +2063,7 @@ static void qpnp_led_turn_off(struct qpnp_led_data *led)
 static int __devinit qpnp_wled_init(struct qpnp_led_data *led)
 {
 	int rc, i;
-	u8 num_wled_strings;
+	u8 num_wled_strings, val = 0;
 
 	num_wled_strings = led->wled_cfg->num_strings;
 
@@ -2181,10 +2135,10 @@ static int __devinit qpnp_wled_init(struct qpnp_led_data *led)
 
 	/* program current sink */
 	if (led->wled_cfg->cs_out_en) {
+		for (i = 0; i < led->wled_cfg->num_strings; i++)
+			val |= 1 << i;
 		rc = qpnp_led_masked_write(led, WLED_CURR_SINK_REG(led->base),
-			WLED_CURR_SINK_MASK,
-			(((1 << led->wled_cfg->num_strings) - 1)
-			<< WLED_CURR_SINK_SHFT));
+			WLED_CURR_SINK_MASK, (val << WLED_CURR_SINK_SHFT));
 		if (rc) {
 			dev_err(&led->spmi_dev->dev,
 				"WLED curr sink reg write failed(%d)\n", rc);
@@ -3354,7 +3308,6 @@ static int __devinit qpnp_get_config_flash(struct qpnp_led_data *led,
 	led->flash_cfg->torch_enable =
 		of_property_read_bool(node, "qcom,torch-enable");
 
-#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_SEC_MS01_PROJECT)
 	if (of_find_property(of_get_parent(node), "flash-wa-supply",
 					NULL) && (!*reg_set)) {
 		led->flash_cfg->flash_wa_reg =
@@ -3369,7 +3322,6 @@ static int __devinit qpnp_get_config_flash(struct qpnp_led_data *led,
 		} else
 			led->flash_cfg->flash_wa_reg_get = true;
 	}
-#endif
 
 	if (led->id == QPNP_ID_FLASH1_LED0) {
 		led->flash_cfg->enable_module = FLASH_ENABLE_LED_0;
