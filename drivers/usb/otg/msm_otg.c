@@ -1433,8 +1433,10 @@ psy_error:
 #ifndef USE_MUIC_CHGTYPE
 static void msm_otg_set_online_status(struct msm_otg *motg)
 {
-	if (!psy)
+	if (!psy) {
 		dev_dbg(motg->phy.dev, "no usb power supply registered\n");
+		return;
+	}
 
 	/* Set power supply online status to false */
 	if (power_supply_set_online(psy, false))
@@ -2412,6 +2414,8 @@ static void msm_chg_detect_work(struct work_struct *w)
 		return;
 	}
 
+	/* resume the device first if at all it resumes */
+	pm_runtime_resume(phy->dev);
 	switch (motg->chg_state) {
 	case USB_CHG_STATE_UNDEFINED:
 		msm_chg_block_on(motg);
@@ -2527,7 +2531,8 @@ static void msm_chg_detect_work(struct work_struct *w)
 		 * due to which charger detection fails in case of PET.
 		 * Add delay of 100 microsec to avoid that.
 		 */
-		udelay(100);
+		if (aca_enabled())
+			udelay(100);
 		msm_chg_enable_aca_intr(motg);
 		dev_dbg(phy->dev, "chg_type = %s\n",
 			chg_to_string(motg->chg_type));
@@ -2892,6 +2897,7 @@ static void msm_otg_sm_work(struct work_struct *w)
 			if (motg->caps & ALLOW_LPM_ON_DEV_SUSPEND) {
 				pm_runtime_put_noidle(otg->phy->dev);
 				pm_runtime_suspend(otg->phy->dev);
+				motg->pm_done = 1;
 			}
 		} else if (test_bit(ID_C, &motg->inputs)) {
 			msm_otg_notify_charger(motg, IDEV_ACA_CHG_MAX);
@@ -4524,7 +4530,7 @@ struct msm_otg_platform_data *msm_otg_dt_to_pdata(struct platform_device *pdev)
 	return pdata;
 }
 
-static int __init msm_otg_probe(struct platform_device *pdev)
+static int msm_otg_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int len = 0;
@@ -4539,22 +4545,20 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		dev_dbg(&pdev->dev, "device tree enabled\n");
 		pdata = msm_otg_dt_to_pdata(pdev);
-		if (!pdata)
-			return -ENOMEM;
+		if (!pdata) {
+			ret = -ENOMEM;
+			return ret;
+		}
 
 		pdata->bus_scale_table = msm_bus_cl_get_pdata(pdev);
 		if (!pdata->bus_scale_table)
 			dev_dbg(&pdev->dev, "bus scaling is disabled\n");
 
 		pdev->dev.platform_data = pdata;
-		ret = msm_otg_setup_devices(pdev, pdata->mode, true);
-		if (ret) {
-			dev_err(&pdev->dev, "devices setup failed\n");
-			return ret;
-		}
 	} else if (!pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "No platform data given. Bailing out\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		return ret;
 	} else {
 		pdata = pdev->dev.platform_data;
 	}
@@ -4562,14 +4566,16 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	motg = devm_kzalloc(&pdev->dev, sizeof(struct msm_otg), GFP_KERNEL);
 	if (!motg) {
 		dev_err(&pdev->dev, "unable to allocate msm_otg\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		return ret;
 	}
 
 	motg->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 							GFP_KERNEL);
 	if (!motg->phy.otg) {
 		dev_err(&pdev->dev, "unable to allocate usb_otg\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto otg_remove_devices;
 	}
 
 	the_msm_otg = motg;
@@ -4623,9 +4629,10 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	 */
 	motg->core_clk = clk_get(&pdev->dev, "core_clk");
 	if (IS_ERR(motg->core_clk)) {
-		motg->core_clk = NULL;
-		dev_err(&pdev->dev, "failed to get core_clk\n");
 		ret = PTR_ERR(motg->core_clk);
+		motg->core_clk = NULL;
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get core_clk\n");
 		goto put_clk;
 	}
 
@@ -4645,8 +4652,10 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 
 	motg->pclk = clk_get(&pdev->dev, "iface_clk");
 	if (IS_ERR(motg->pclk)) {
-		dev_err(&pdev->dev, "failed to get iface_clk\n");
 		ret = PTR_ERR(motg->pclk);
+		motg->pclk = NULL;
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get iface_clk\n");
 		goto put_core_clk;
 	}
 
@@ -4656,7 +4665,12 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	 */
 	motg->sleep_clk = devm_clk_get(&pdev->dev, "sleep_clk");
 	if (IS_ERR(motg->sleep_clk)) {
-		dev_dbg(&pdev->dev, "failed to get sleep_clk\n");
+		ret = PTR_ERR(motg->sleep_clk);
+		motg->sleep_clk = NULL;
+		if (ret == -EPROBE_DEFER)
+			goto put_pclk;
+		else
+			dev_dbg(&pdev->dev, "failed to get sleep_clk\n");
 	} else {
 		ret = clk_prepare_enable(motg->sleep_clk);
 		if (ret) {
@@ -4942,6 +4956,14 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	if (ret)
 		dev_dbg(&pdev->dev, "fail to setup cdev\n");
 
+	if (pdev->dev.of_node) {
+		ret = msm_otg_setup_devices(pdev, pdata->mode, true);
+		if (ret) {
+			dev_err(&pdev->dev, "devices setup failed\n");
+			goto remove_cdev;
+		}
+	}
+
 	motg->pm_notify.notifier_call = msm_otg_pm_notify;
 	register_pm_notifier(&motg->pm_notify);
 #ifdef CONFIG_USBIRQ_BALANCING_LTE_HIGHTP
@@ -4958,6 +4980,16 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 
 	return 0;
 
+remove_cdev:
+	if (!motg->ext_chg_device) {
+		device_destroy(motg->ext_chg_class, motg->ext_chg_dev);
+		cdev_del(&motg->ext_chg_cdev);
+		class_destroy(motg->ext_chg_class);
+		unregister_chrdev_region(motg->ext_chg_dev, 1);
+	}
+	if (psy)
+		power_supply_unregister(psy);
+	usb_set_transceiver(NULL);
 free_async_irq:
 	if (motg->async_irq)
 		free_irq(motg->async_irq, motg);
@@ -4982,32 +5014,39 @@ devote_xo_handle:
 	else
 		msm_xo_mode_vote(motg->xo_handle, MSM_XO_MODE_OFF);
 free_xo_handle:
-	if (!IS_ERR(motg->xo_clk))
+	if (!IS_ERR(motg->xo_clk)) {
 		clk_put(motg->xo_clk);
-	else
+		motg->xo_clk = NULL;
+	} else {
 		msm_xo_put(motg->xo_handle);
+	}
 free_regs:
 	iounmap(motg->regs);
-disable_sleep_clk:
-	if (!IS_ERR(motg->sleep_clk))
-		clk_disable_unprepare(motg->sleep_clk);
-put_pclk:
-	clk_put(motg->pclk);
-put_core_clk:
-	clk_put(motg->core_clk);
-put_clk:
-	if (!IS_ERR(motg->clk))
-		clk_put(motg->clk);
 devote_bus_bw:
 	if (motg->bus_perf_client) {
 		msm_otg_bus_vote(motg, USB_NO_PERF_VOTE);
 		msm_bus_scale_unregister_client(motg->bus_perf_client);
 	}
+otg_remove_devices:
+	if (pdev->dev.of_node)
+		msm_otg_setup_devices(pdev, motg->pdata->mode, false);
+disable_sleep_clk:
+	if (!IS_ERR(motg->sleep_clk))
+		clk_disable_unprepare(motg->sleep_clk);
+put_pclk:
+	if (!IS_ERR(motg->pclk))
+		clk_put(motg->pclk);
+put_core_clk:
+	if (!IS_ERR(motg->core_clk))
+		clk_put(motg->core_clk);
+put_clk:
+	if (!IS_ERR(motg->clk))
+		clk_put(motg->clk);
 
 	return ret;
 }
 
-static int __devexit msm_otg_remove(struct platform_device *pdev)
+static int msm_otg_remove(struct platform_device *pdev)
 {
 	struct msm_otg *motg = platform_get_drvdata(pdev);
 	struct usb_phy *phy = &motg->phy;
@@ -5033,6 +5072,8 @@ static int __devexit msm_otg_remove(struct platform_device *pdev)
 		msm_otg_setup_devices(pdev, motg->pdata->mode, false);
 	if (motg->pdata->otg_control == OTG_PMIC_CONTROL)
 		pm8921_charger_unregister_vbus_sn(0);
+	if (psy)
+		power_supply_unregister(psy);
 	msm_otg_mhl_register_callback(motg, NULL);
 	msm_otg_debugfs_cleanup();
 	cancel_delayed_work_sync(&motg->chg_work);
@@ -5116,6 +5157,14 @@ static int __devexit msm_otg_remove(struct platform_device *pdev)
 	}
 
 	return 0;
+}
+
+static void msm_otg_shutdown(struct platform_device *pdev)
+{
+	struct msm_otg *motg = platform_get_drvdata(pdev);
+
+	dev_dbg(&pdev->dev, "OTG shutdown\n");
+	msm_hsusb_vbus_power(motg, 0);
 }
 
 #ifdef CONFIG_PM_RUNTIME
@@ -5232,7 +5281,9 @@ static struct of_device_id msm_otg_dt_match[] = {
 };
 
 static struct platform_driver msm_otg_driver = {
-	.remove = __devexit_p(msm_otg_remove),
+	.probe = msm_otg_probe,
+	.remove = msm_otg_remove,
+	.shutdown = msm_otg_shutdown,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -5243,18 +5294,7 @@ static struct platform_driver msm_otg_driver = {
 	},
 };
 
-static int __init msm_otg_init(void)
-{
-	return platform_driver_probe(&msm_otg_driver, msm_otg_probe);
-}
-
-static void __exit msm_otg_exit(void)
-{
-	platform_driver_unregister(&msm_otg_driver);
-}
-
-module_init(msm_otg_init);
-module_exit(msm_otg_exit);
+module_platform_driver(msm_otg_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MSM USB transceiver driver");
