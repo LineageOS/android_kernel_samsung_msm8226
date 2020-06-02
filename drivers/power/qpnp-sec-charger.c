@@ -6745,7 +6745,7 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		pr_err("kzalloc() failed.\n");
 		return -ENOMEM;
 	}
-#if defined(CONFIG_MACH_MS01_LTE)
+#if 0
 	chg_chip =  chip;
 #endif
 #ifdef SEC_CHARGER_CODE
