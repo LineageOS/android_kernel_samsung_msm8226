@@ -99,9 +99,10 @@
 		cell-index = <23>;
 		compatible = "i2c-gpio";
 		gpios = <&msmgpio 23 0 /* sda */
-		&msmgpio 16 0 /* scl */
-		>;
-                i2c-gpio,delay-us = <2>;
+			&msmgpio 16 0 /* scl */>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		an30259a@30 {
 			compatible = "an30259a,led";
 			reg = <0x30>;
@@ -126,6 +127,8 @@
 		gpios = <&msmgpio 114 0 /* sda */
 		&msmgpio 66 0 /* scl */
 		>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	
 		cypress_touchkey@20 {
 			compatible = "cypress,cypress-tkey";
