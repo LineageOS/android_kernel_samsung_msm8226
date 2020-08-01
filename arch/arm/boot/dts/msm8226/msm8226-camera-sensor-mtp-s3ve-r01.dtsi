@@ -28,14 +28,19 @@
 		cell-index = <20>;
 		compatible = "i2c-gpio";
 		gpios = <&msmgpio 34 0 /* sda */
-		&msmgpio 36 0 /* scl */>;
-
+				&msmgpio 36 0 /* scl */>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		actuator0: qcom,actuator@50 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			compatible = "qcom,actuator";
 			cell-index = <0>;
 			reg = <0x50>;
 		};
 		actuator1: qcom,actuator@36 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			compatible = "qcom,actuator";
 			cell-index = <1>;
 			reg = <0x36>;
