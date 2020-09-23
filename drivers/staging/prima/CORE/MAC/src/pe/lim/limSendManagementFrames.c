@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -109,7 +109,7 @@ tSirRetStatus limStripOffExtCapIE(tpAniSirGlobal pMac,
             tempLen += (elem_len + 2);
         }
         else
-        { /*Est Cap present size is 8 + 2 byte at present*/
+        {
             if ( NULL != pExtractedExtCapIEBuf )
             {
                 vos_mem_set(pExtractedExtCapIEBuf,
@@ -135,6 +135,7 @@ void limUpdateExtCapIEtoStruct(tpAniSirGlobal pMac,
                             tDot11fIEExtCap *pDst)
 {
     tANI_U8 pOut[DOT11F_IE_EXTCAP_MAX_LEN];
+    tANI_U8 tag, len, *val;
 
     if ( NULL == pBuf )
     {
@@ -149,22 +150,23 @@ void limUpdateExtCapIEtoStruct(tpAniSirGlobal pMac,
         return ;
     }
 
-    if ( DOT11F_EID_EXTCAP != pBuf[0] ||
-         pBuf[1] > DOT11F_IE_EXTCAP_MAX_LEN )
+    /* Get tlv */
+    tag = pBuf[0];
+    len = pBuf[1];
+    val = &pBuf[2];
+
+    if ( DOT11F_EID_EXTCAP != tag ||
+         len > DOT11F_IE_EXTCAP_MAX_LEN )
     {
         limLog( pMac, LOG1,
-               FL("Invalid IEs eid = %d elem_len=%d "),
-                                               pBuf[0],pBuf[1]);
+               FL("Invalid IEs eid = %d elem_len=%d "), tag, len);
         return;
     }
-    vos_mem_set(( tANI_U8* )&pOut[0], DOT11F_IE_EXTCAP_MAX_LEN, 0);
-    /* conversion should follow 4, 2, 2 byte order */
-    limUtilsframeshtonl(pMac, &pOut[0],*((tANI_U32*)&pBuf[2]),0);
-    limUtilsframeshtons(pMac, &pOut[4],*((tANI_U16*)&pBuf[6]),0);
-    limUtilsframeshtons(pMac, &pOut[6],*((tANI_U16*)&pBuf[8]),0);
 
+    vos_mem_zero(pOut, DOT11F_IE_EXTCAP_MAX_LEN);
+    vos_mem_copy(pOut, val, len);
     if ( DOT11F_PARSE_SUCCESS != dot11fUnpackIeExtCap( pMac,
-                &pOut[0], DOT11F_IE_EXTCAP_MAX_LEN, pDst) )
+                 pOut, len, pDst) )
     {
         limLog( pMac, LOGE,
                FL("dot11fUnpackIeExtCap Parse Error "));
@@ -196,17 +198,40 @@ tSirRetStatus limStripOffExtCapIEAndUpdateStruct(tpAniSirGlobal pMac,
 }
 
 void limMergeExtCapIEStruct(tDot11fIEExtCap *pDst,
-                            tDot11fIEExtCap *pSrc)
+                            tDot11fIEExtCap *pSrc,
+                            bool add)
 {
-    tANI_U8 *tempDst = (tANI_U8 *)pDst;
-    tANI_U8 *tempSrc = (tANI_U8 *)pSrc;
-    tANI_U8 structlen = sizeof(tDot11fIEExtCap);
+    tANI_U8 *tempDst = (tANI_U8 *)pDst->bytes;
+    tANI_U8 *tempSrc = (tANI_U8 *)pSrc->bytes;
+    tANI_U8 structlen = DOT11F_IE_EXTCAP_MAX_LEN;
 
+    // if src is not present, nothing to do
+    if(!pSrc->present) {
+        return;
+    }
+
+    // if dst is not present, and add=false, nothing to do
+    if (!pDst->present && !add) {
+        return;
+    }
+
+    // in other cases, need to merge the bits
+    pDst->present = 1;
     while(tempDst && tempSrc && structlen--)
     {
-        *tempDst |= *tempSrc;
+        if (add) {
+            *tempDst |= *tempSrc;
+        } else {
+            *tempDst &= *tempSrc;
+        }
         tempDst++;
         tempSrc++;
+    }
+    pDst->num_bytes = lim_compute_ext_cap_ie_length(pDst);
+
+    // if all bits are zero, it means it is not prsent.
+    if (pDst->num_bytes == 0) {
+        pDst->present = 0;
     }
 }
 
@@ -944,7 +969,7 @@ limSendProbeRspMgmtFrame(tpAniSirGlobal pMac,
     /*merge ExtCap IE*/
     if (extractedExtCapFlag && extractedExtCap.present)
     {
-        limMergeExtCapIEStruct(&pFrm->ExtCap, &extractedExtCap);
+        limMergeExtCapIEStruct(&pFrm->ExtCap, &extractedExtCap, true);
     }
 
     nStatus = dot11fGetPackedProbeResponseSize( pMac, pFrm, &nPayload );
@@ -1627,7 +1652,7 @@ limSendAssocRspMgmtFrame(tpAniSirGlobal pMac,
     /* merge the ExtCap struct*/
     if (extractedExtCapFlag && extractedExtCap.present)
     {
-        limMergeExtCapIEStruct(&(frm.ExtCap), &extractedExtCap);
+        limMergeExtCapIEStruct(&(frm.ExtCap), &extractedExtCap, true);
     }
 
     nStatus = dot11fGetPackedAssocResponseSize( pMac, &frm, &nPayload );
@@ -2293,7 +2318,7 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
     vos_mem_set( ( tANI_U8* )pFrm, sizeof( tDot11fAssocRequest ), 0 );
 
     vos_mem_set(( tANI_U8* )&extractedExtCap, sizeof( tDot11fIEExtCap ), 0);
-    if (psessionEntry->is_ext_caps_present)
+    if (psessionEntry->ExtCap.present)
     {
         nSirStatus = limStripOffExtCapIEAndUpdateStruct(pMac, pAddIE,
                                   &nAddIELen,
@@ -2310,21 +2335,12 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
      */
     else
     {
-        if(extractedExtCap.interworkingService)
-        {
-            extractedExtCap.qosMap = 1;
+        struct s_ext_cap *p_ext_cap = (struct s_ext_cap *)extractedExtCap.bytes;
+        if (p_ext_cap->interworkingService) {
+            p_ext_cap->qosMap = 1;
         }
-        /* No need to merge the EXT Cap from Supplicant
-         * if interworkingService is not set, as currently
-         * driver is only interested in interworkingService
-         * capability from supplicant. if in
-         * future any other EXT Cap info is required from
-         * supplicant it needs to be handled here.
-         */
-        else
-        {
-            extractedExtCapFlag = eANI_BOOLEAN_FALSE;
-        }
+        extractedExtCap.num_bytes = lim_compute_ext_cap_ie_length(&extractedExtCap);
+        extractedExtCapFlag = (extractedExtCap.num_bytes > 0);
     }
 
     caps = pMlmAssocReq->capabilityInfo;
@@ -2491,7 +2507,7 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
 
     }
 #endif
-    if (psessionEntry->is_ext_caps_present)
+    if (psessionEntry->ExtCap.present)
         PopulateDot11fExtCap( pMac, &pFrm->ExtCap, psessionEntry);
 
 #if defined WLAN_FEATURE_VOWIFI_11R
@@ -2528,7 +2544,13 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
     /* merge the ExtCap struct*/
     if (extractedExtCapFlag && extractedExtCap.present)
     {
-        limMergeExtCapIEStruct(&pFrm->ExtCap, &extractedExtCap);
+        limMergeExtCapIEStruct(&pFrm->ExtCap, &extractedExtCap, true);
+    }
+
+    if (pFrm->ExtCap.present && psessionEntry->ExtCap.present) {
+        limMergeExtCapIEStruct(&pFrm->ExtCap, &psessionEntry->ExtCap, false);
+        limLog(pMac, LOG1,
+            FL("Clear the bits in EXTCAP IE that AP don't support to avoid IoT issues."));
     }
 
     nStatus = dot11fGetPackedAssocRequestSize( pMac, pFrm, &nPayload );
@@ -2565,9 +2587,6 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
         mlmAssocCnf.sessionId = psessionEntry->peSessionId;
 
         mlmAssocCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
-
-        palPktFree( pMac->hHdd, HAL_TXRX_FRM_802_11_MGMT,
-                ( void* ) pFrame, ( void* ) pPacket );
 
         limPostSmeMessage( pMac, LIM_MLM_ASSOC_CNF,
                 ( tANI_U32* ) &mlmAssocCnf);
@@ -2973,7 +2992,7 @@ limSendReassocReqWithFTIEsMgmtFrame(tpAniSirGlobal     pMac,
 
     }
 #endif
-    if (psessionEntry->is_ext_caps_present)
+    if (psessionEntry->ExtCap.present)
         PopulateDot11fExtCap( pMac, &frm.ExtCap, psessionEntry);
 
     nStatus = dot11fGetPackedReAssocRequestSize( pMac, &frm, &nPayload );
@@ -3446,7 +3465,7 @@ limSendReassocReqMgmtFrame(tpAniSirGlobal     pMac,
         limLog( pMac, LOG1, FL("Populate VHT IEs in Re-Assoc Request"));
         PopulateDot11fVHTCaps( pMac, &frm.VHTCaps,
                      psessionEntry->currentOperChannel, eSIR_FALSE );
-        if (psessionEntry->is_ext_caps_present)
+        if (psessionEntry->ExtCap.present)
             PopulateDot11fExtCap( pMac, &frm.ExtCap, psessionEntry);
     }
 #endif
@@ -3668,7 +3687,7 @@ void
 limSendAuthMgmtFrame(tpAniSirGlobal pMac,
                      tpSirMacAuthFrameBody pAuthFrameBody,
                      tSirMacAddr           peerMacAddr,
-                     tANI_U8               wepBit,
+                     tANI_U8               wep_challenge_len,
                      tpPESession           psessionEntry,
                      tAniBool              waitForAck
                                                        )
@@ -3693,7 +3712,7 @@ limSendAuthMgmtFrame(tpAniSirGlobal pMac,
            pAuthFrameBody->authStatusCode,
            (pAuthFrameBody->authStatusCode == eSIR_MAC_SUCCESS_STATUS),
             MAC_ADDR_ARRAY(peerMacAddr));
-    if (wepBit == LIM_WEP_IN_FC)
+    if (wep_challenge_len)
     {
         /// Auth frame3 to be sent with encrypted framebody
         /**
@@ -3703,10 +3722,8 @@ limSendAuthMgmtFrame(tpAniSirGlobal pMac,
          * 128 bytes for challenge text and 4 bytes each for
          * IV & ICV.
          */
-
-        frameLen = sizeof(tSirMacMgmtHdr) + LIM_ENCR_AUTH_BODY_LEN;
-
-        bodyLen = LIM_ENCR_AUTH_BODY_LEN;
+        bodyLen = wep_challenge_len + LIM_ENCR_AUTH_INFO_LEN;
+        frameLen = sizeof(tSirMacMgmtHdr) + bodyLen;
     } // if (wepBit == LIM_WEP_IN_FC)
     else
     {
@@ -3771,9 +3788,11 @@ limSendAuthMgmtFrame(tpAniSirGlobal pMac,
                      * for challenge text.
                      */
 
+                    bodyLen  = SIR_MAC_AUTH_FRAME_INFO_LEN +
+                               SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH +
+                               SIR_MAC_CHALLENGE_ID_LEN;
                     frameLen = sizeof(tSirMacMgmtHdr) +
-                               sizeof(tSirMacAuthFrame);
-                    bodyLen  = sizeof(tSirMacAuthFrameBody);
+                               bodyLen;
                 }
 
                 break;
@@ -3834,7 +3853,10 @@ limSendAuthMgmtFrame(tpAniSirGlobal pMac,
     }
 
     pMacHdr = ( tpSirMacMgmtHdr ) pFrame;
-    pMacHdr->fc.wep = wepBit;
+    if (wep_challenge_len)
+        pMacHdr->fc.wep = LIM_WEP_IN_FC;
+    else
+        pMacHdr->fc.wep = LIM_NO_WEP_IN_FC;
 
     // Prepare BSSId
     if(  (psessionEntry->limSystemRole == eLIM_AP_ROLE)|| (psessionEntry->limSystemRole == eLIM_BT_AMP_AP_ROLE) )
@@ -3847,7 +3869,7 @@ limSendAuthMgmtFrame(tpAniSirGlobal pMac,
     /// Prepare Authentication frame body
     pBody    = pFrame + sizeof(tSirMacMgmtHdr);
 
-    if (wepBit == LIM_WEP_IN_FC)
+    if (wep_challenge_len)
     {
         vos_mem_copy(pBody, (tANI_U8 *) pAuthFrameBody, bodyLen);
 

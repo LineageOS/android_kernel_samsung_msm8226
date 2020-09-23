@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1027,12 +1027,13 @@ PopulateDot11fExtCap(tpAniSirGlobal      pMac,
                            tDot11fIEExtCap  *pDot11f,
                            tpPESession   psessionEntry)
 {
+     struct s_ext_cap *p_ext_cap = (struct s_ext_cap *)pDot11f->bytes;
 
 #ifdef WLAN_FEATURE_11AC
     if (psessionEntry->vhtCapability &&
         psessionEntry->limSystemRole != eLIM_STA_IN_IBSS_ROLE )
     {
-        pDot11f->operModeNotification = 1;
+        p_ext_cap->operModeNotification = 1;
         pDot11f->present = 1;
     }
 #endif
@@ -1049,9 +1050,15 @@ PopulateDot11fExtCap(tpAniSirGlobal      pMac,
          && pMac->roam.configParam.channelBondingMode24GHz)
 #endif
        {
-           pDot11f->bssCoexistMgmtSupport = 1;
+           p_ext_cap->bssCoexistMgmtSupport = 1;
            pDot11f->present = 1;
        }
+    }
+
+    if (pDot11f->present)
+    {
+        /* Need to compute the num_bytes based on bits set */
+        pDot11f->num_bytes = lim_compute_ext_cap_ie_length(pDot11f);
     }
     return eSIR_SUCCESS;
 }
@@ -2147,12 +2154,6 @@ tSirRetStatus sirConvertProbeFrame2Struct(tpAniSirGlobal       pMac,
         vos_mem_vfree(pr);
         return eSIR_FAILURE;
     }
-    else if ( DOT11F_WARNED( status ) )
-    {
-      limLog( pMac, LOGW, FL("There were warnings while unpacking a Probe Response (0x%08x, %d bytes)"),
-                 status, nFrame );
-        PELOG2(sirDumpBuf(pMac, SIR_DBG_MODULE_ID, LOG2, pFrame, nFrame);)
-    }
 
     // & "transliterate" from a 'tDot11fProbeResponse' to a 'tSirProbeRespBeacon'...
 
@@ -2631,10 +2632,13 @@ sirConvertAssocRespFrame2Struct(tpAniSirGlobal pMac,
     }
     if (ar.ExtCap.present)
     {
+        struct s_ext_cap *p_ext_cap;
         vos_mem_copy(&pAssocRsp->ExtCap, &ar.ExtCap, sizeof(tDot11fIEExtCap));
+
+        p_ext_cap = (struct s_ext_cap *)&pAssocRsp->ExtCap.bytes;
         limLog(pMac, LOG1,
                FL("ExtCap is present, TDLSChanSwitProhibited: %d"),
-               ar.ExtCap.TDLSChanSwitProhibited);
+               p_ext_cap->TDLSChanSwitProhibited);
     }
     if ( ar.WMMParams.present )
     {
@@ -2699,7 +2703,7 @@ sirConvertAssocRespFrame2Struct(tpAniSirGlobal pMac,
         pAssocRsp->num_tspecs = ar.num_WMMTSPEC;
         for (cnt=0; cnt < ar.num_WMMTSPEC; cnt++) {
             vos_mem_copy( &pAssocRsp->TSPECInfo[cnt], &ar.WMMTSPEC[cnt],
-                          (sizeof(tDot11fIEWMMTSPEC)*ar.num_WMMTSPEC));
+                          (sizeof(tDot11fIEWMMTSPEC)));
         }
         pAssocRsp->tspecPresent = TRUE;
     }
@@ -2951,6 +2955,8 @@ sirFillBeaconMandatoryIEforEseBcnReport(tpAniSirGlobal   pMac,
         limLog(pMac, LOGE, FL("Failed to allocate memory") );
         return eSIR_FAILURE;
     }
+    vos_mem_zero(pBies, sizeof(tDot11fBeaconIEs));
+
     // delegate to the framesc-generated code,
     status = dot11fUnpackBeaconIEs( pMac, pPayload, nPayload, pBies );
 
@@ -3245,6 +3251,8 @@ sirParseBeaconIE(tpAniSirGlobal        pMac,
         limLog(pMac, LOGE, FL("Failed to allocate memory") );
         return eSIR_FAILURE;
     }
+    vos_mem_zero(pBies, sizeof(tDot11fBeaconIEs));
+
     // delegate to the framesc-generated code,
     status = dot11fUnpackBeaconIEs( pMac, pPayload, nPayload, pBies );
 
@@ -3511,12 +3519,6 @@ sirConvertBeaconFrame2Struct(tpAniSirGlobal       pMac,
         PELOG2(sirDumpBuf(pMac, SIR_DBG_MODULE_ID, LOG2, pPayload, nPayload);)
         vos_mem_vfree(pBeacon);
         return eSIR_FAILURE;
-    }
-    else if ( DOT11F_WARNED( status ) )
-    {
-      limLog( pMac, LOGW, FL("There were warnings while unpacking Beacon IEs (0x%08x, %d bytes)"),
-                 status, nPayload );
-        PELOG2(sirDumpBuf(pMac, SIR_DBG_MODULE_ID, LOG2, pPayload, nPayload);)
     }
 
     // & "transliterate" from a 'tDot11fBeacon' to a 'tSirProbeRespBeacon'...
@@ -3922,7 +3924,7 @@ sirConvertAddtsReq2Struct(tpAniSirGlobal    pMac,
         if ( addts.num_WMMTCLAS )
         {
             j = (tANI_U8)(pAddTs->numTclas + addts.num_WMMTCLAS);
-            if ( SIR_MAC_TCLASIE_MAXNUM > j ) j = SIR_MAC_TCLASIE_MAXNUM;
+            if ( SIR_MAC_TCLASIE_MAXNUM < j ) j = SIR_MAC_TCLASIE_MAXNUM;
 
             for ( i = pAddTs->numTclas; i < j; ++i )
             {
@@ -4104,7 +4106,7 @@ sirConvertAddtsRsp2Struct(tpAniSirGlobal    pMac,
         if ( addts.num_WMMTCLAS )
         {
             j = (tANI_U8)(pAddTs->numTclas + addts.num_WMMTCLAS);
-            if ( SIR_MAC_TCLASIE_MAXNUM > j ) j = SIR_MAC_TCLASIE_MAXNUM;
+            if ( SIR_MAC_TCLASIE_MAXNUM < j ) j = SIR_MAC_TCLASIE_MAXNUM;
 
             for ( i = pAddTs->numTclas; i < j; ++i )
             {

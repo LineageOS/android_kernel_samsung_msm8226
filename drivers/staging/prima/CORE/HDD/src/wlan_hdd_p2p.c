@@ -454,7 +454,7 @@ void wlan_hdd_remain_on_chan_timeout(void *data)
 
     if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic))
     {
-        hddLog( LOGE, FL("pAdapter is invalid %p !!!"), pAdapter);
+        hddLog( LOGE, FL("pAdapter is invalid %pK !!!"), pAdapter);
         return;
     }
     pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
@@ -775,7 +775,7 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
 
                 schedule_delayed_work(&pAdapter->roc_work,
                         msecs_to_jiffies(pHddCtx->cfg_ini->gP2PListenDeferInterval));
-                hddLog(VOS_TRACE_LEVEL_INFO, "Defer interval is %hu, pAdapter %p",
+                hddLog(VOS_TRACE_LEVEL_INFO, "Defer interval is %hu, pAdapter %pK",
                         pHddCtx->cfg_ini->gP2PListenDeferInterval, pAdapter);
                 return 0;
             }
@@ -2270,7 +2270,7 @@ void hdd_sendMgmtFrameOverMonitorIface( hdd_adapter_t *pMonAdapter,
      {
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
                    "HDD [%d]: Insufficient headroom, "
-                   "head[%p], data[%p], req[%d]",
+                   "head[%pK], data[%pK], req[%d]",
                    __LINE__, skb->head, skb->data, nFrameLength);
          kfree_skb(skb);
          return ;
@@ -2352,7 +2352,8 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *pAdapter,
 
     /* Get pAdapter from Destination mac address of the frame */
     if ((type == SIR_MAC_MGMT_FRAME) &&
-            (subType != SIR_MAC_MGMT_PROBE_REQ))
+        (subType != SIR_MAC_MGMT_PROBE_REQ) &&
+        (nFrameLength > WLAN_HDD_80211_FRM_DA_OFFSET + VOS_MAC_ADDR_SIZE))
     {
          pAdapter = hdd_get_adapter_by_macaddr( WLAN_HDD_GET_CTX(pAdapter),
                             &pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET]);
@@ -2421,12 +2422,16 @@ void __hdd_indicate_mgmt_frame(hdd_adapter_t *pAdapter,
     cfgState = WLAN_HDD_GET_CFG_STATE_PTR( pAdapter );
 
     if ((type == SIR_MAC_MGMT_FRAME) &&
-        (subType == SIR_MAC_MGMT_ACTION))
+        (subType == SIR_MAC_MGMT_ACTION) &&
+        (nFrameLength > WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + 1))
     {
         if(pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] == WLAN_HDD_PUBLIC_ACTION_FRAME)
         {
             // public action frame
-            if((pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET+1] == SIR_MAC_ACTION_VENDOR_SPECIFIC) &&
+            if((WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET + SIR_MAC_P2P_OUI_SIZE + 2 <
+                nFrameLength) &&
+               (pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET+1] ==
+                SIR_MAC_ACTION_VENDOR_SPECIFIC) &&
                 vos_mem_compare(&pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET+2], SIR_MAC_P2P_OUI, SIR_MAC_P2P_OUI_SIZE))
             // P2P action frames
             {

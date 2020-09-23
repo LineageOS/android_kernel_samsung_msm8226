@@ -454,7 +454,7 @@ eHalStatus csrQueueScanRequest( tpAniSirGlobal pMac, tSmeCmd *pScanCmd )
             pChnInfo->numOfChannels = pScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.numOfChannels - nNumChanCombinedConc;
 
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN,
-                    FL(" &channelToScan %p pScanCmd(%p) pScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.ChannelList(%p)numChn(%d)"),
+                    FL(" &channelToScan %pK pScanCmd(%pK) pScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.ChannelList(%pK)numChn(%d)"),
                     &channelToScan[0], pScanCmd,
                     pScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.ChannelList, numChn);
 
@@ -8434,6 +8434,13 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
    {
       uLen = pPrefNetworkFoundInd->frameLength -
           (SIR_MAC_HDR_LEN_3A + SIR_MAC_B_PR_SSID_OFFSET);
+   }
+
+   if (uLen > (UINT_MAX - sizeof(tCsrScanResult))) {
+       smsLog(pMac, LOGE, FL("Incorrect len: %d, may leads to int overflow, uLen %d"),
+              pPrefNetworkFoundInd->frameLength, uLen);
+       vos_mem_vfree(pParsedFrame);
+       return eHAL_STATUS_FAILURE;
    }
 
    pScanResult = vos_mem_malloc(sizeof(tCsrScanResult) + uLen);

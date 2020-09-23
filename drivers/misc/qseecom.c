@@ -1110,7 +1110,8 @@ static int qseecom_unmap_ion_allocated_memory(struct qseecom_dev_handle *data)
 	if (!IS_ERR_OR_NULL(data->client.ihandle)) {
 		ion_unmap_kernel(qseecom.ion_clnt, data->client.ihandle);
 		ion_free(qseecom.ion_clnt, data->client.ihandle);
-		data->client.ihandle = NULL;
+		memset((void *)&data->client,
+			0, sizeof(struct qseecom_client_handle));
 	}
 	return ret;
 }
@@ -4187,6 +4188,13 @@ static long qseecom_ioctl(struct file *file, unsigned cmd,
 		break;
 	}
 	case QSEECOM_IOCTL_APP_LOADED_QUERY_REQ: {
+		if ((data->type != QSEECOM_GENERIC) &&
+			(data->type != QSEECOM_CLIENT_APP)) {
+			pr_err("app loaded query req: invalid handle (%d)\n",
+								data->type);
+			ret = -EINVAL;
+			break;
+		}
 		data->type = QSEECOM_CLIENT_APP;
 		pr_debug("APP_LOAD_QUERY: qseecom_addr = 0x%x\n", (u32)data);
 		mutex_lock(&app_access_lock);
@@ -4803,15 +4811,14 @@ exit_unreg_chrdev_region:
 static int __devinit qseecom_remove(struct platform_device *pdev)
 {
 	struct qseecom_registered_kclient_list *kclient = NULL;
+	struct qseecom_registered_kclient_list *kclient_tmp = NULL;
 	unsigned long flags = 0;
 	int ret = 0;
 
 	spin_lock_irqsave(&qseecom.registered_kclient_list_lock, flags);
 
-	list_for_each_entry(kclient, &qseecom.registered_kclient_list_head,
-								list) {
-		if (!kclient)
-			goto exit_irqrestore;
+	list_for_each_entry_safe(kclient, kclient_tmp,
+		&qseecom.registered_kclient_list_head, list) {
 
 		/* Break the loop if client handle is NULL */
 		if (!kclient->handle)
@@ -4833,7 +4840,7 @@ exit_free_kc_handle:
 	kzfree(kclient->handle);
 exit_free_kclient:
 	kzfree(kclient);
-exit_irqrestore:
+
 	spin_unlock_irqrestore(&qseecom.registered_kclient_list_lock, flags);
 
 	if (qseecom.qseos_version > QSEEE_VERSION_00)

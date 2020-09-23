@@ -1063,7 +1063,7 @@ void csrAbortCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOLEAN fStop
         {
         case eSmeCommandScan:
             // We need to inform the requester before dropping the scan command
-            smsLog( pMac, LOGW, "%s: Drop scan reason %d callback %p",
+            smsLog( pMac, LOGW, "%s: Drop scan reason %d callback %pK",
                     __func__, pCommand->u.scanCmd.reason,
                     pCommand->u.scanCmd.callback);
             if (NULL != pCommand->u.scanCmd.callback)
@@ -9398,7 +9398,7 @@ tANI_BOOLEAN csrRoamIssueWmStatusChange( tpAniSirGlobal pMac, tANI_U32 sessionId
                          pSmeRsp,
                          sizeof( pCommand->u.wmStatusChangeCmd.u.DeauthIndMsg ));
         }
-        if( HAL_STATUS_SUCCESS( csrQueueSmeCommand(pMac, pCommand, eANI_BOOLEAN_TRUE) ) )
+        if( HAL_STATUS_SUCCESS( csrQueueSmeCommand(pMac, pCommand, eANI_BOOLEAN_FALSE) ) )
         {
             fCommandQueued = eANI_BOOLEAN_TRUE;
         }
@@ -10128,11 +10128,14 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                                 if(pNewBss)
                                 {
                                     vos_mem_copy(pIbssLog->bssid, pNewBss->bssId, 6);
-                                    if(pNewBss->ssId.length)
-                                    {
-                                        vos_mem_copy(pIbssLog->ssid, pNewBss->ssId.ssId,
-                                                     pNewBss->ssId.length);
-                                    }
+                                    if(pNewBss->ssId.length >
+                                       VOS_LOG_MAX_SSID_SIZE)
+                                        pNewBss->ssId.length =
+                                                          VOS_LOG_MAX_SSID_SIZE;
+
+                                    vos_mem_copy(pIbssLog->ssid,
+                                                 pNewBss->ssId.ssId,
+                                                 pNewBss->ssId.length);
                                     pIbssLog->operatingChannel = pNewBss->channelNumber;
                                 }
                                 if(HAL_STATUS_SUCCESS(ccmCfgGetInt(pMac, WNI_CFG_BEACON_INTERVAL, &bi)))
@@ -10481,7 +10484,7 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                                                  operationChannel,
                                                  IS_HT40_OBSS_SCAN_FEATURE_ENABLE);
                                          smsLog( pMac, LOG1,FL("connectState %d"
-                                                 "pCurRoamProfile %p"),
+                                                 "pCurRoamProfile %pK"),
                                                  pSession->connectState,
                                                  pSession->pCurRoamProfile);
                                     }
@@ -14401,16 +14404,7 @@ eHalStatus csrSendMBSetContextReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId,
                 // set pSirKey->keyLength = keyLength;
                 p = pal_set_U16( p, pal_cpu_to_be16(keyLength) );
         if ( keyLength && pKey ) 
-        {   
             vos_mem_copy(p, pKey, keyLength);
-            if(keyLength == 16)
-            {
-                smsLog(pMac, LOG1, "  SME Set keyIdx (%d) encType(%d) key = %02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X",
-                keyId, edType, pKey[0], pKey[1], pKey[2], pKey[3], pKey[4],
-                pKey[5], pKey[6], pKey[7], pKey[8],
-                pKey[9], pKey[10], pKey[11], pKey[12], pKey[13], pKey[14], pKey[15]);
-            }
-        }
         status = palSendMBMessage(pMac->hHdd, pMsg);
     } while( 0 );
     return( status );
@@ -18267,7 +18261,7 @@ void csrGetStaticUapsdMask(tpAniSirGlobal pMac, tANI_U8 *staticUapsdMask)
 
     if(!pSession || !pSession->pCurRoamProfile)
        smsLog(pMac, LOGE, FL("Either pSession or Roam profile is NULL,"
-           " pSession:%p"), pSession);
+           " pSession:%pK"), pSession);
     else
        *staticUapsdMask = pSession->pCurRoamProfile->uapsd_mask;
 }

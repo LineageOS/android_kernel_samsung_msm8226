@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016, 2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -234,6 +234,9 @@ typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
 #define MIN(a, b) (a > b ? b : a)
 
 #endif
+
+#define HDD_MAX_STA_COUNT (HAL_NUM_STA)
+
 /*
  * Generic asynchronous request/response support
  *
@@ -285,7 +288,6 @@ extern spinlock_t hdd_context_lock;
 #define STATS_CONTEXT_MAGIC 0x53544154   //STAT
 #define RSSI_CONTEXT_MAGIC  0x52535349   //RSSI
 #define POWER_CONTEXT_MAGIC 0x504F5752   //POWR
-#define SNR_CONTEXT_MAGIC   0x534E5200   //SNR
 #define BCN_MISS_RATE_CONTEXT_MAGIC 0x513F5753
 #define FW_STATS_CONTEXT_MAGIC  0x5022474E //FW STATS
 #define GET_FRAME_LOG_MAGIC   0x464c4f47   //FLOG
@@ -1144,7 +1146,7 @@ struct hdd_adapter_s
    v_BOOL_t isLinkLayerStatsSet;
 #endif
    /* DSCP to UP QoS Mapping */
-   sme_QosWmmUpType hddWmmDscpToUpMap[WLAN_HDD_MAX_DSCP+1];
+   sme_QosWmmUpType hddWmmDscpToUpMap[WLAN_MAX_DSCP+1];
    /* Lock for active sessions while processing deauth/Disassoc */
    spinlock_t lock_for_active_session;
    tSirFwStatsResult  fwStatsRsp;
@@ -1556,9 +1558,9 @@ tANI_U8* wlan_hdd_get_intf_addr(hdd_context_t* pHddCtx);
 void wlan_hdd_release_intf_addr(hdd_context_t* pHddCtx, tANI_U8* releaseAddr);
 v_U8_t hdd_get_operating_channel( hdd_context_t *pHddCtx, device_mode_t mode );
 void wlan_hdd_mon_set_typesubtype( hdd_mon_ctx_t *pMonCtx,int type);
-void hdd_monPostMsgCb(tANI_U32 *magic, struct completion *cmpVar);
-VOS_STATUS wlan_hdd_mon_postMsg(tANI_U32 *magic, struct completion *cmpVar,
-                                hdd_mon_ctx_t *pMonCtx , void* callback);
+void hdd_mon_post_msg_cb(void *context);
+VOS_STATUS wlan_hdd_mon_postMsg(void *cookie, hdd_mon_ctx_t *pMonCtx,
+                                void* callback);
 void hdd_set_conparam ( v_UINT_t newParam );
 tVOS_CON_MODE hdd_get_conparam( void );
 
@@ -1730,5 +1732,16 @@ static inline void hdd_init_ll_stat_ctx(void)
 void hdd_wlan_free_wiphy_channels(struct wiphy *wiphy);
 void hdd_initialize_adapter_common(hdd_adapter_t *pAdapter);
 
+/**
+ * hdd_drv_cmd_validate() - Validates for space in hdd driver command
+ * @command: pointer to input data (its a NULL terminated string)
+ * @len: length of command name
+ *
+ * This function checks for space after command name and if no space
+ * is found returns error.
+ *
+ * Return: 0 for success non-zero for failure
+ */
+int hdd_drv_cmd_validate(tANI_U8 *command, int len);
 
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

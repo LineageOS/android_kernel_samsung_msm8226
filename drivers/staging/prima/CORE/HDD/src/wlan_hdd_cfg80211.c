@@ -2132,6 +2132,8 @@ wlan_hdd_extscan_config_policy
                                                         { .type = NLA_U32 },
     [QCA_WLAN_VENDOR_ATTR_EXTSCAN_GET_VALID_CHANNELS_CONFIG_PARAM_WIFI_BAND] =
                                                         { .type = NLA_U32 },
+    [QCA_WLAN_VENDOR_ATTR_EXTSCAN_GET_VALID_CHANNELS_CONFIG_PARAM_MAX_CHANNELS] =
+                                                        { .type = NLA_U32 },
     [QCA_WLAN_VENDOR_ATTR_EXTSCAN_CHANNEL_SPEC_CHANNEL] = { .type = NLA_U32 },
     [QCA_WLAN_VENDOR_ATTR_EXTSCAN_CHANNEL_SPEC_DWELL_TIME] =
                                                             { .type = NLA_U32 },
@@ -4373,7 +4375,9 @@ static int wlan_hdd_cfg80211_extscan_reset_significant_change(
 static const struct nla_policy
 wlan_hdd_tdls_config_enable_policy[QCA_WLAN_VENDOR_ATTR_TDLS_ENABLE_MAX +1] =
 {
-    [QCA_WLAN_VENDOR_ATTR_TDLS_ENABLE_MAC_ADDR] = {.type = NLA_UNSPEC },
+    [QCA_WLAN_VENDOR_ATTR_TDLS_ENABLE_MAC_ADDR] = {
+        .type = NLA_UNSPEC,
+        .len = HDD_MAC_ADDR_LEN},
     [QCA_WLAN_VENDOR_ATTR_TDLS_ENABLE_CHANNEL] = {.type = NLA_S32 },
     [QCA_WLAN_VENDOR_ATTR_TDLS_ENABLE_GLOBAL_OPERATING_CLASS] =
                                                        {.type = NLA_S32 },
@@ -4385,7 +4389,9 @@ wlan_hdd_tdls_config_enable_policy[QCA_WLAN_VENDOR_ATTR_TDLS_ENABLE_MAX +1] =
 static const struct nla_policy
 wlan_hdd_tdls_config_disable_policy[QCA_WLAN_VENDOR_ATTR_TDLS_DISABLE_MAX +1] =
 {
-    [QCA_WLAN_VENDOR_ATTR_TDLS_DISABLE_MAC_ADDR] = {.type = NLA_UNSPEC },
+    [QCA_WLAN_VENDOR_ATTR_TDLS_DISABLE_MAC_ADDR] = {
+        .type = NLA_UNSPEC,
+        .len = HDD_MAC_ADDR_LEN},
 
 };
 
@@ -4393,7 +4399,9 @@ static const struct nla_policy
 wlan_hdd_tdls_config_state_change_policy[
                     QCA_WLAN_VENDOR_ATTR_TDLS_STATE_MAX +1] =
 {
-    [QCA_WLAN_VENDOR_ATTR_TDLS_STATE_MAC_ADDR] = {.type = NLA_UNSPEC },
+    [QCA_WLAN_VENDOR_ATTR_TDLS_STATE_MAC_ADDR] = {
+        .type = NLA_UNSPEC,
+        .len = HDD_MAC_ADDR_LEN},
     [QCA_WLAN_VENDOR_ATTR_TDLS_NEW_STATE] = {.type = NLA_S32 },
     [QCA_WLAN_VENDOR_ATTR_TDLS_STATE_REASON] = {.type = NLA_S32 },
     [QCA_WLAN_VENDOR_ATTR_TDLS_STATE_CHANNEL] = {.type = NLA_S32 },
@@ -4406,7 +4414,9 @@ static const struct nla_policy
 wlan_hdd_tdls_config_get_status_policy[
                      QCA_WLAN_VENDOR_ATTR_TDLS_GET_STATUS_MAX +1] =
 {
-    [QCA_WLAN_VENDOR_ATTR_TDLS_GET_STATUS_MAC_ADDR] = {.type = NLA_UNSPEC },
+    [QCA_WLAN_VENDOR_ATTR_TDLS_GET_STATUS_MAC_ADDR] = {
+        .type = NLA_UNSPEC,
+        .len = HDD_MAC_ADDR_LEN},
     [QCA_WLAN_VENDOR_ATTR_TDLS_GET_STATUS_STATE] = {.type = NLA_S32 },
     [QCA_WLAN_VENDOR_ATTR_TDLS_GET_STATUS_REASON] = {.type = NLA_S32 },
     [QCA_WLAN_VENDOR_ATTR_TDLS_GET_STATUS_CHANNEL] = {.type = NLA_S32 },
@@ -4418,7 +4428,9 @@ wlan_hdd_tdls_config_get_status_policy[
 static const struct nla_policy
 wlan_hdd_mac_config[QCA_WLAN_VENDOR_ATTR_SET_SCANNING_MAC_OUI_MAX+1] =
 {
-    [QCA_WLAN_VENDOR_ATTR_SET_SCANNING_MAC_OUI] = {.type = NLA_UNSPEC },
+    [QCA_WLAN_VENDOR_ATTR_SET_SCANNING_MAC_OUI] = {
+        .type = NLA_UNSPEC,
+        .len = VOS_MAC_ADDR_FIRST_3_BYTES},
 };
 
 static int __wlan_hdd_cfg80211_set_spoofed_mac_oui(struct wiphy *wiphy,
@@ -5020,6 +5032,15 @@ wlan_hdd_cfg80211_get_supported_features(struct wiphy *wiphy,
     return ret;
 }
 
+#define MAX_CONCURRENT_MATRIX \
+    QCA_WLAN_VENDOR_ATTR_GET_CONCURRENCY_MATRIX_MAX
+#define MATRIX_CONFIG_PARAM_SET_SIZE_MAX \
+    QCA_WLAN_VENDOR_ATTR_GET_CONCURRENCY_MATRIX_CONFIG_PARAM_SET_SIZE_MAX
+static const struct nla_policy
+wlan_hdd_get_concurrency_matrix_policy[MAX_CONCURRENT_MATRIX + 1] = {
+    [MATRIX_CONFIG_PARAM_SET_SIZE_MAX] = {.type = NLA_U32},
+};
+
 static int
 __wlan_hdd_cfg80211_get_concurrency_matrix(struct wiphy *wiphy,
                                          struct wireless_dev *wdev,
@@ -5027,7 +5048,7 @@ __wlan_hdd_cfg80211_get_concurrency_matrix(struct wiphy *wiphy,
 {
     uint32_t feature_set_matrix[WLAN_HDD_MAX_FEATURE_SET] = {0};
     uint8_t i, feature_sets, max_feature_sets;
-    struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_GET_CONCURRENCY_MATRIX_MAX + 1];
+    struct nlattr *tb[MAX_CONCURRENT_MATRIX + 1];
     struct sk_buff *reply_skb;
     hdd_context_t *pHddCtx = wiphy_priv(wiphy);
     int ret;
@@ -5040,19 +5061,18 @@ __wlan_hdd_cfg80211_get_concurrency_matrix(struct wiphy *wiphy,
         return ret;
     }
 
-    if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_GET_CONCURRENCY_MATRIX_MAX,
-                  data, data_len, NULL)) {
+    if (nla_parse(tb, MAX_CONCURRENT_MATRIX, data, data_len,
+                  wlan_hdd_get_concurrency_matrix_policy)) {
         hddLog(LOGE, FL("Invalid ATTR"));
         return -EINVAL;
     }
 
     /* Parse and fetch max feature set */
-    if (!tb[QCA_WLAN_VENDOR_ATTR_GET_CONCURRENCY_MATRIX_CONFIG_PARAM_SET_SIZE_MAX]) {
+    if (!tb[MATRIX_CONFIG_PARAM_SET_SIZE_MAX]) {
         hddLog(LOGE, FL("Attr max feature set size failed"));
         return -EINVAL;
     }
-    max_feature_sets = nla_get_u32(
-     tb[QCA_WLAN_VENDOR_ATTR_GET_CONCURRENCY_MATRIX_CONFIG_PARAM_SET_SIZE_MAX]);
+    max_feature_sets = nla_get_u32(tb[MATRIX_CONFIG_PARAM_SET_SIZE_MAX]);
     hddLog(LOG1, FL("Max feature set size (%d)"), max_feature_sets);
 
     /* Fill feature combination matrix */
@@ -5102,6 +5122,9 @@ __wlan_hdd_cfg80211_get_concurrency_matrix(struct wiphy *wiphy,
     return -ENOMEM;
 
 }
+
+#undef MAX_CONCURRENT_MATRIX
+#undef MATRIX_CONFIG_PARAM_SET_SIZE_MAX
 
 static int
 wlan_hdd_cfg80211_get_concurrency_matrix(struct wiphy *wiphy,
@@ -5190,7 +5213,9 @@ const struct
 nla_policy qca_wlan_vendor_attr[QCA_WLAN_VENDOR_ATTR_MAX+1] =
 {
     [QCA_WLAN_VENDOR_ATTR_ROAMING_POLICY] = { .type = NLA_U32 },
-    [QCA_WLAN_VENDOR_ATTR_MAC_ADDR]       = { .type = NLA_UNSPEC },
+    [QCA_WLAN_VENDOR_ATTR_MAC_ADDR]       = {
+        .type = NLA_UNSPEC,
+        .len = HDD_MAC_ADDR_LEN},
 };
 
 static int __wlan_hdd_cfg80211_firmware_roaming(struct wiphy *wiphy,
@@ -8867,9 +8892,16 @@ static int __wlan_hdd_change_station(struct wiphy *wiphy,
             StaParams.supported_oper_classes_len  =
                                              params->supported_oper_classes_len;
 
+            if (params->ext_capab_len > sizeof(StaParams.extn_capability)) {
+                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                          "received extn capabilities: %d, reset to max supported",
+                          params->ext_capab_len);
+                params->ext_capab_len = sizeof(StaParams.extn_capability);
+            }
+
             if (0 != params->ext_capab_len)
                 vos_mem_copy(StaParams.extn_capability, params->ext_capab,
-                             sizeof(StaParams.extn_capability));
+                             params->ext_capab_len);
 
             if (NULL != params->ht_capa)
             {
@@ -9003,6 +9035,11 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
     VOS_STATUS vos_status;
     eHalStatus halStatus;
     hdd_context_t *pHddCtx;
+    uint8_t i;
+    v_MACADDR_t *peerMacAddr;
+    u64 rsc_counter = 0;
+    uint8_t staid = HDD_MAX_STA_COUNT;
+    bool pairwise_set_key = false;
 
     ENTER();
 
@@ -9047,6 +9084,8 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
     hddLog(VOS_TRACE_LEVEL_INFO,
            "%s: called with key index = %d & key length %d & seq length %d",
            __func__, key_index, params->key_len, params->seq_len);
+
+    peerMacAddr = (v_MACADDR_t *)mac_addr;
 
     /*extract key idx, key len and key*/
     vos_mem_zero(&setKey,sizeof(tCsrRoamSetKey));
@@ -9159,6 +9198,7 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 __func__, __LINE__);
         setKey.keyDirection = eSIR_TX_RX;
         vos_mem_copy(setKey.peerMac, mac_addr,WNI_CFG_BSSID_LEN);
+        pairwise_set_key = true;
     }
     if ((WLAN_HDD_IBSS == pAdapter->device_mode) && !pairwise)
     {
@@ -9188,6 +9228,9 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
         {
             hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
             vos_status = wlan_hdd_check_ula_done(pAdapter);
+
+            if (peerMacAddr && (pairwise_set_key == true))
+                staid = hdd_sta_id_find_from_mac_addr(pAdapter, peerMacAddr);
 
             if ( vos_status != VOS_STATUS_SUCCESS )
             {
@@ -9249,6 +9292,9 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 hdd_PerformRoamSetKeyComplete(pAdapter);
             }
         }
+
+        if (pairwise_set_key == true)
+           staid = pHddStaCtx->conn_info.staId[0];
 
         pWextState->roamProfile.Keys.KeyLength[key_index] = (u8)params->key_len;
 
@@ -9355,6 +9401,14 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 goto end;
             }
         }
+    }
+
+    if (pairwise_set_key == true) {
+       for (i = 0; i < params->seq_len; i++) {
+          rsc_counter |= (params->seq[i] << i*8);
+       }
+
+       WLANTL_SetKeySeqCounter(pVosContext, rsc_counter, staid);
     }
 
 end:
@@ -10436,7 +10490,7 @@ static eHalStatus hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
     pScanInfo = &pHddCtx->scan_info;
 
     hddLog(VOS_TRACE_LEVEL_INFO,
-            "%s called with halHandle = %p, pContext = %p,"
+            "%s called with halHandle = %pK, pContext = %pK,"
             "scanID = %d, returned status = %d",
             __func__, halHandle, pContext, (int) scanId, (int) status);
 
@@ -10614,7 +10668,7 @@ v_BOOL_t hdd_isConnectionInProgress( hdd_context_t *pHddCtx)
                 (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState))
             {
                 hddLog(VOS_TRACE_LEVEL_ERROR,
-                       "%s: %p(%d) Connection is in progress", __func__,
+                       "%s: %pK(%d) Connection is in progress", __func__,
                        WLAN_HDD_GET_STATION_CTX_PTR(pAdapter), pAdapter->sessionId);
                 return VOS_TRUE;
             }
@@ -10622,7 +10676,7 @@ v_BOOL_t hdd_isConnectionInProgress( hdd_context_t *pHddCtx)
                  smeNeighborMiddleOfRoaming(WLAN_HDD_GET_HAL_CTX(pAdapter)))
             {
                 hddLog(VOS_TRACE_LEVEL_ERROR,
-                       "%s: %p(%d) Reassociation is in progress", __func__,
+                       "%s: %pK(%d) Reassociation is in progress", __func__,
                        WLAN_HDD_GET_STATION_CTX_PTR(pAdapter), pAdapter->sessionId);
                 return VOS_TRUE;
             }
@@ -11704,6 +11758,14 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
         eLen  = *genie++;
         remLen -= 2;
 
+        /* Sanity check on eLen */
+        if (eLen > remLen) {
+            hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Invalid IE length[%d] for IE[0x%X]",
+                    __func__, eLen, elementId);
+            VOS_ASSERT(0);
+            return -EINVAL;
+        }
+
         hddLog(VOS_TRACE_LEVEL_INFO, "%s: IE[0x%X], LEN[%d]",
             __func__, elementId, eLen);
 
@@ -11739,6 +11801,13 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                 }
                 else if (0 == memcmp(&genie[0], "\x00\x50\xf2", 3))
                 {
+                    if (eLen > (MAX_WPA_RSN_IE_LEN - 2)) {
+                        hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Invalid WPA RSN IE length[%d]",
+                            __func__, eLen);
+                        VOS_ASSERT(0);
+                        return -EINVAL;
+                    }
+
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set WPA IE (len %d)",__func__, eLen + 2);
                     memset( pWextState->WPARSNIE, 0, MAX_WPA_RSN_IE_LEN );
                     memcpy( pWextState->WPARSNIE, genie - 2, (eLen + 2) /*ie_len*/);
@@ -11948,6 +12017,12 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                 } /* end of if (WLAN_HDD_IBSS == pAdapter->device_mode) */
                 break;
             case DOT11F_EID_RSN:
+                if (eLen > (MAX_WPA_RSN_IE_LEN - 2)) {
+                    hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Invalid WPA RSN IE length[%d], exceeds %d bytes",
+                            __func__, eLen, MAX_WPA_RSN_IE_LEN - 2);
+                    VOS_ASSERT(0);
+                    return -EINVAL;
+                }
                 hddLog (VOS_TRACE_LEVEL_INFO, "%s Set RSN IE(len %d)",__func__, eLen + 2);
                 memset( pWextState->WPARSNIE, 0, MAX_WPA_RSN_IE_LEN );
                 memcpy( pWextState->WPARSNIE, genie - 2, (eLen + 2)/*ie_len*/);
@@ -11955,13 +12030,14 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                 pWextState->roamProfile.nRSNReqIELength = eLen + 2; //ie_len;
                 break;
 
-                /* Appending Extended Capabilities with Interworking bit set
-                 * in Assoc Req.
+                /* Appending extended capabilities with Interworking or
+                 * bsstransition bit set in Assoc Req.
                  *
                  * In assoc req this EXT Cap will only be taken into account if
-                 * interworkingService bit is set to 1. Currently
-                 * driver is only interested in interworkingService capability
-                 * from supplicant. If in future any other EXT Cap info is
+                 * interworkingService or bsstransition bit is set to 1.
+                 * Driver is only interested in interworkingService and
+                 * bsstransition capability from supplicant.
+                 * If in future any other EXT Cap info is
                  * required from supplicat, it needs to be handled while
                  * sending Assoc Req in LIM.
                  */
@@ -12674,6 +12750,7 @@ static int wlan_hdd_cfg80211_set_privacy_ibss(
                                          )
 {
     int status = 0;
+    tANI_U32 ret;
     hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
     eCsrEncryptionType encryptionType = eCSR_ENCRYPT_TYPE_NONE;
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
@@ -12711,10 +12788,18 @@ static int wlan_hdd_cfg80211_set_privacy_ibss(
                 }
                 // Unpack the WPA IE
                 //Skip past the EID byte and length byte - and four byte WiFi OUI
-                dot11fUnpackIeWPA((tpAniSirGlobal) halHandle,
+                ret = dot11fUnpackIeWPA((tpAniSirGlobal) halHandle,
                                 &ie[2+4],
                                 ie[1] - 4,
                                 &dot11WPAIE);
+                if (DOT11F_FAILED(ret))
+                {
+                    hddLog(LOGE,
+                           FL("unpack failed status:(0x%08x)"),
+                           ret);
+                    return -EINVAL;
+                }
+
                 /*Extract the multicast cipher, the encType for unicast
                                cipher for wpa-none is none*/
                 encryptionType =
@@ -14163,7 +14248,7 @@ static int __wlan_hdd_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device 
     }
 
     if (!pmksa->bssid || !pmksa->pmkid) {
-       hddLog(LOGE, FL("pmksa->bssid(%p) or pmksa->pmkid(%p) is NULL"),
+       hddLog(LOGE, FL("pmksa->bssid(%pK) or pmksa->pmkid(%pK) is NULL"),
               pmksa->bssid, pmksa->pmkid);
        return -EINVAL;
     }
@@ -16627,6 +16712,12 @@ static int __wlan_hdd_cfg80211_testmode(struct wiphy *wiphy, void *data, int len
             buf = nla_data(tb[WLAN_HDD_TM_ATTR_DATA]);
             buf_len = nla_len(tb[WLAN_HDD_TM_ATTR_DATA]);
 
+            if (buf_len > sizeof(*hb_params)) {
+                hddLog(LOGE, FL("buf_len=%d exceeded hb_params size limit"),
+                       buf_len);
+                return -ERANGE;
+            }
+
             hb_params_temp =(tSirLPHBReq *)buf;
             if ((hb_params_temp->cmd == LPHB_SET_TCP_PARAMS_INDID) &&
                 (hb_params_temp->params.lphbTcpParamReq.timePeriodSec == 0))
@@ -16646,6 +16737,7 @@ static int __wlan_hdd_cfg80211_testmode(struct wiphy *wiphy, void *data, int len
                 return -EINVAL;
             }
 
+            vos_mem_zero(hb_params, sizeof(tSirLPHBReq));
             vos_mem_copy(hb_params, buf, buf_len);
             smeStatus = sme_LPHBConfigReq((tHalHandle)(pHddCtx->hHal),
                                hb_params,

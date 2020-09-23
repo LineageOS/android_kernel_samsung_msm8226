@@ -84,9 +84,6 @@
 #define WMM_TRACE_LEVEL_INFO_LOW   VOS_TRACE_LEVEL_INFO_LOW
 #endif
 
-
-#define WLAN_HDD_MAX_DSCP 0x3f
-
 // DHCP Port number
 #define DHCP_SOURCE_PORT 0x4400
 #define DHCP_DESTINATION_PORT 0x4300
@@ -375,7 +372,7 @@ static void hdd_wmm_free_context (hdd_wmm_qos_context_t* pQosContext)
    }
 
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
-             "%s: Entered, context %p",
+             "%s: Entered, context %pK",
              __func__, pQosContext);
 
    // take the wmmLock since we're manipulating the context list
@@ -438,7 +435,7 @@ static void hdd_wmm_notify_app (hdd_wmm_qos_context_t* pQosContext)
    }
 
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
-             "%s: Entered, context %p",
+             "%s: Entered, context %pK",
              __func__, pQosContext);
 
    mutex_lock(&pHddCtx->wmmLock);
@@ -583,7 +580,7 @@ void hdd_wmm_inactivity_timer_cb( v_PVOID_t pUserData )
     if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic))
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  FL("invalid pAdapter: %p"), pAdapter);
+                  FL("invalid pAdapter: %pK"), pAdapter);
         return;
     }
 
@@ -753,7 +750,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
 
 
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
-             "%s: Entered, context %p",
+             "%s: Entered, context %pK",
              __func__, pQosContext);
 
    mutex_lock(&pHddCtx->wmmLock);
@@ -773,7 +770,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
    pAc = &pAdapter->hddWmmStatus.wmmAcStatus[acType];
 
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
-             "%s: status %d flowid %d info %p",
+             "%s: status %d flowid %d info %pK",
              __func__, smeStatus, qosFlowId, pCurrentQosInfo);
 
    switch (smeStatus)
@@ -1449,7 +1446,7 @@ static void __hdd_wmm_do_implicit_qos(struct work_struct *work)
    }
 
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
-             "%s: Entered, context %p",
+             "%s: Entered, context %pK",
              __func__, pQosContext);
 
    mutex_lock(&pHddCtx->wmmLock);
@@ -1468,7 +1465,7 @@ static void __hdd_wmm_do_implicit_qos(struct work_struct *work)
    pAc = &pAdapter->hddWmmStatus.wmmAcStatus[acType];
 
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
-             "%s: pAdapter %p acType %d",
+             "%s: pAdapter %pK acType %d",
              __func__, pAdapter, acType);
 
    if (!pAc->wmmAcAccessNeeded)
@@ -1697,7 +1694,7 @@ VOS_STATUS hdd_wmm_init ( hdd_adapter_t *pAdapter )
              "%s: Entered", __func__);
 
    // DSCP to User Priority Lookup Table
-   for (dscp = 0; dscp <= WLAN_HDD_MAX_DSCP; dscp++)
+   for (dscp = 0; dscp <= WLAN_MAX_DSCP; dscp++)
    {
       hddWmmDscpToUpMap[dscp] = SME_QOS_WMM_UP_BE;
    }
@@ -2120,7 +2117,7 @@ v_U16_t hdd_hostapd_select_queue(struct net_device * dev, struct sk_buff *skb
    }
    /*Get the Station ID*/
    STAId = hdd_sta_id_find_from_mac_addr(pAdapter, pDestMacAddress);
-   if (STAId == HDD_WLAN_INVALID_STA_ID) {
+   if (STAId == HDD_WLAN_INVALID_STA_ID || STAId >= WLAN_MAX_STA_COUNT) {
        VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO,
                  "%s: Failed to find right station", __func__);
        goto done;
@@ -2356,7 +2353,7 @@ VOS_STATUS hdd_wmm_acquire_access( hdd_adapter_t* pAdapter,
 
    // we need to establish implicit QoS
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO,
-             "%s: Need to schedule implicit QoS for TL AC %d, pAdapter is %p",
+             "%s: Need to schedule implicit QoS for TL AC %d, pAdapter is %pK",
              __func__, acType, pAdapter);
 
    pAdapter->hddWmmStatus.wmmAcStatus[acType].wmmAcAccessNeeded = VOS_TRUE;
@@ -2381,7 +2378,7 @@ VOS_STATUS hdd_wmm_acquire_access( hdd_adapter_t* pAdapter,
              hdd_wmm_do_implicit_qos);
 
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO,
-             "%s: Scheduling work for AC %d, context %p",
+             "%s: Scheduling work for AC %d, context %pK",
              __func__, acType, pQosContext);
 
    schedule_work(&pQosContext->wmmAcSetupImplicitQos);
@@ -2848,7 +2845,7 @@ hdd_wlan_wmm_status_e hdd_wmm_addts( hdd_adapter_t* pAdapter,
    pQosContext->qosFlowId = 0;
 
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO,
-             "%s: Setting up QoS, context %p",
+             "%s: Setting up QoS, context %pK",
              __func__, pQosContext);
 
    mutex_lock(&pHddCtx->wmmLock);
@@ -2983,7 +2980,7 @@ hdd_wlan_wmm_status_e hdd_wmm_delts( hdd_adapter_t* pAdapter,
 
 
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
-             "%s: found handle 0x%x, flow %d, AC %d, context %p",
+             "%s: found handle 0x%x, flow %d, AC %d, context %pK",
              __func__, handle, qosFlowId, acType, pQosContext);
 
 #ifndef WLAN_MDM_CODE_REDUCTION_OPT
@@ -3091,7 +3088,7 @@ hdd_wlan_wmm_status_e hdd_wmm_checkts( hdd_adapter_t* pAdapter,
       if (pQosContext->handle == handle)
       {
          VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
-                   "%s: found handle 0x%x, context %p",
+                   "%s: found handle 0x%x, context %pK",
                    __func__, handle, pQosContext);
 
          status = pQosContext->lastStatus;
