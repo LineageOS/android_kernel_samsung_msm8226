@@ -1607,7 +1607,7 @@ qpnp_chg_vddmax_and_trim_set(struct qpnp_chg_chip *chip,
 			voltage, trim_mv, vddmax, trim);
 	return 0;
 }
-
+#if !defined(CONFIG_BATTERY_SAMSUNG) || (defined(CONFIG_BATTERY_SAMSUNG) && defined(CONFIG_BATTERY_SWELLING))
 static int
 qpnp_chg_vddmax_get(struct qpnp_chg_chip *chip)
 {
@@ -1622,6 +1622,7 @@ qpnp_chg_vddmax_get(struct qpnp_chg_chip *chip)
 
 	return QPNP_CHG_V_MIN_MV + (int)vddmax * QPNP_CHG_V_STEP_MV;
 }
+#endif
 
 /* JEITA compliance logic */
 static void
@@ -5553,7 +5554,9 @@ static enum power_supply_property sec_qpnp_chg_props[] = {
 	POWER_SUPPLY_PROP_INPUT_CURRENT_TRIM,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_SETTLED,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
+#if defined(CONFIG_BATTERY_SWELLING)
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+#endif
 	POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION,
 };
 
@@ -5568,7 +5571,9 @@ sec_qpnp_chg_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_TRIM:
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_SETTLED:
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
+#if defined(CONFIG_BATTERY_SWELLING)
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+#endif
 	case POWER_SUPPLY_PROP_COOL_TEMP:
 	case POWER_SUPPLY_PROP_WARM_TEMP:
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -5644,9 +5649,11 @@ sec_qpnp_chg_get_property(struct power_supply *psy,
 		case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 			val->intval = qpnp_chg_vinmin_get(chip) * 1000;
 			break;
+#if defined(CONFIG_BATTERY_SWELLING)
 		case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 			val->intval = qpnp_chg_vddmax_get(chip);
 			break;
+#endif
 		default:
 			return -EINVAL;
 	}
@@ -5764,11 +5771,13 @@ sec_qpnp_chg_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 		qpnp_chg_vinmin_set(chip, val->intval / 1000);
 		break;
+#if defined(CONFIG_BATTERY_SWELLING)
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		pr_info("set cv(%dmV)",val->intval);
 		qpnp_chg_vddmax_and_trim_set(chip, val->intval, 
 						chip->delta_vddmax_mv);
 		break;
+#endif
 	default:
 		return -EINVAL;
 	}
