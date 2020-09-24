@@ -1900,12 +1900,13 @@ static void sec_bat_check_changed_soc(
 			dev_info(battery->dev, "%s: prev_reported_soc = %d, soc = %d\n",
 					__func__, battery->prev_reported_soc, value->intval);
 		}
+#if !defined(CONFIG_MACH_S3VE3G_EUR)  // update immediately on s3ve3g devices
 		/* if soc have been chaged, only change soc by 1
 		 * soc in increased ? (previous + 1) : (previous - 1) */
 		value->intval = (value->intval > battery->prev_reported_soc) ?
 				(battery->prev_reported_soc + 1) :
 				(battery->prev_reported_soc - 1);
-
+#endif
 		if (value->intval > 100)
 			value->intval = 100;
 		else if (value->intval < 0)
