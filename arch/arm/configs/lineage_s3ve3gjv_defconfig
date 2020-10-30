@@ -1,4 +1,3 @@
-#
 # Automatically generated file; DO NOT EDIT.
 # Linux/arm 3.4.113 Kernel Configuration
 #
@@ -125,7 +124,7 @@ CONFIG_INITRAMFS_SOURCE=""
 CONFIG_RD_GZIP=y
 CONFIG_RD_BZIP2=y
 CONFIG_RD_LZMA=y
-# CONFIG_RD_XZ is not set
+CONFIG_RD_XZ=y
 # CONFIG_RD_LZO is not set
 # CONFIG_RD_LZ4 is not set
 CONFIG_CC_OPTIMIZE_FOR_SIZE=y
