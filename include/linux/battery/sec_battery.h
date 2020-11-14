@@ -42,6 +42,14 @@ struct sec_battery_extcon_cable{
 
 #define TEMP_HIGHLIMIT_DEFAULT	2000
 
+#if defined(CONFIG_CHARGING_VZWCONCEPT)
+#define STORE_MODE_CHARGING_MAX 35
+#define STORE_MODE_CHARGING_MIN 30
+#else
+#define STORE_MODE_CHARGING_MAX 70
+#define STORE_MODE_CHARGING_MIN 60
+#endif
+
 struct adc_sample_info {
 	unsigned int cnt;
 	int total_adc;
