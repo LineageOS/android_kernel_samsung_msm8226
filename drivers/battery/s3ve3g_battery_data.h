@@ -22,9 +22,9 @@
 
 static void * samsung_battery_data;
 
-#define CAPACITY_MAX			1000
+#define CAPACITY_MAX            1000
 #define CAPACITY_MAX_MARGIN     50
-#define CAPACITY_MIN			0
+#define CAPACITY_MIN            0
 
 static sec_bat_adc_table_data_t temp_table[] = {
   {26537, 800},
@@ -54,16 +54,16 @@ static sec_bat_adc_table_data_t chg_temp_table[] = {
 	{0, 0},
 };
 
-#define TEMP_HIGH_THRESHOLD_EVENT  600
-#define TEMP_HIGH_RECOVERY_EVENT   470
+#define TEMP_HIGH_THRESHOLD_EVENT  580
+#define TEMP_HIGH_RECOVERY_EVENT   530
 #define TEMP_LOW_THRESHOLD_EVENT   (-50)
 #define TEMP_LOW_RECOVERY_EVENT    0
-#define TEMP_HIGH_THRESHOLD_NORMAL 600
-#define TEMP_HIGH_RECOVERY_NORMAL  470
+#define TEMP_HIGH_THRESHOLD_NORMAL 580
+#define TEMP_HIGH_RECOVERY_NORMAL  530
 #define TEMP_LOW_THRESHOLD_NORMAL  (-50)
 #define TEMP_LOW_RECOVERY_NORMAL   0
-#define TEMP_HIGH_THRESHOLD_LPM    600
-#define TEMP_HIGH_RECOVERY_LPM     470
+#define TEMP_HIGH_THRESHOLD_LPM    580
+#define TEMP_HIGH_RECOVERY_LPM     530
 #define TEMP_LOW_THRESHOLD_LPM     (-50)
 #define TEMP_LOW_RECOVERY_LPM      0
 
