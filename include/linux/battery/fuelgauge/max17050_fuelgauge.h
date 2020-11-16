@@ -18,7 +18,9 @@
 #ifndef __MAX17050_FUELGAUGE_H
 #define __MAX17050_FUELGAUGE_H __FILE__
 
+#if defined(ANDROID_ALARM_ACTIVATED)
 #include <linux/android_alarm.h>
+#endif
 
 #if defined(CONFIG_MACH_LT03SKT) || defined(CONFIG_MACH_LT03KTT) || \
 	defined(CONFIG_MACH_LT03LGT) || defined(CONFIG_MACH_MONDRIAN)
