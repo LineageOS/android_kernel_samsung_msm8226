@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "210e1209_14bca337",
+        "filename": "drivers/battery/max17050_fuelgauge.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 2077,
+      "author": {
+        "id": 26076
+      },
+      "writtenOn": "2020-11-28T17:19:05Z",
+      "side": 1,
+      "message": "\u003e don\u0027t touch these lines\n\nwhy he thinks we shouldn\u0027t touch these lines",
+      "parentUuid": "037d38cb_d6c55a6a",
+      "range": {
+        "startLine": 2076,
+        "startChar": 0,
+        "endLine": 2077,
+        "endChar": 41
+      },
+      "revId": "263449855e78ba69fb1a3872b28677d25a7f2a7f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "58306ab7_f725cd6a",
         "filename": "drivers/battery/max17050_fuelgauge.c",
         "patchSetId": 1
@@ -36,6 +60,30 @@
       "writtenOn": "2020-11-28T16:01:44Z",
       "side": 1,
       "message": "same",
+      "range": {
+        "startLine": 2079,
+        "startChar": 0,
+        "endLine": 2080,
+        "endChar": 41
+      },
+      "revId": "263449855e78ba69fb1a3872b28677d25a7f2a7f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "7d4f891d_8e32dd53",
+        "filename": "drivers/battery/max17050_fuelgauge.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 2080,
+      "author": {
+        "id": 26076
+      },
+      "writtenOn": "2020-11-28T17:19:05Z",
+      "side": 1,
+      "message": "\u003e same\nwhy he thinks we shouldn\u0027t touch these lines",
+      "parentUuid": "58306ab7_f725cd6a",
       "range": {
         "startLine": 2079,
         "startChar": 0,
