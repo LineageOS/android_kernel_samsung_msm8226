@@ -1900,13 +1900,12 @@ static void sec_bat_check_changed_soc(
 			dev_info(battery->dev, "%s: prev_reported_soc = %d, soc = %d\n",
 					__func__, battery->prev_reported_soc, value->intval);
 		}
-#if !defined(CONFIG_MACH_S3VE3G_EUR)  // update immediately on s3ve3g devices
 		/* if soc have been chaged, only change soc by 1
 		 * soc in increased ? (previous + 1) : (previous - 1) */
 		value->intval = (value->intval > battery->prev_reported_soc) ?
 				(battery->prev_reported_soc + 1) :
 				(battery->prev_reported_soc - 1);
-#endif
+
 		if (value->intval > 100)
 			value->intval = 100;
 		else if (value->intval < 0)
@@ -1925,8 +1924,8 @@ static void sec_bat_get_battery_info(
 {
 	union power_supply_propval value;
 #if defined(CONFIG_MACH_VIENNAEUR) || defined(CONFIG_MACH_VIENNAVZW) || defined(CONFIG_MACH_VIENNAKOR) || defined(CONFIG_MACH_V2) || \
-	defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT) || defined(CONFIG_MACH_S3VE3G_EUR) || \
-	defined(CONFIG_AFC_CHARGER_MODE) || defined(CONFIG_MACH_KLTE_USC) || defined(CONFIG_MACH_KLIMT_VZW) || defined(CONFIG_SEC_DEGAS_PROJECT)
+	defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT) || defined(CONFIG_SEC_DEGAS_PROJECT) || \
+	defined(CONFIG_AFC_CHARGER_MODE) || defined(CONFIG_MACH_KLTE_USC) || defined(CONFIG_MACH_KLIMT_VZW)
 	static struct timespec old_ts;
 	struct timespec c_ts;
 
@@ -2029,8 +2028,8 @@ static void sec_bat_get_battery_info(
 	sec_bat_check_changed_soc(battery, &value);
 
 #if defined(CONFIG_MACH_VIENNAEUR) || defined(CONFIG_MACH_VIENNAVZW) || defined(CONFIG_MACH_VIENNAKOR) || defined(CONFIG_MACH_V2) || \
-	defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT) || defined(CONFIG_MACH_S3VE3G_EUR) || \
-	defined(CONFIG_AFC_CHARGER_MODE) || defined(CONFIG_MACH_KLTE_USC) || defined(CONFIG_MACH_KLIMT_VZW) || defined(CONFIG_SEC_DEGAS_PROJECT)
+	defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT) || defined(CONFIG_SEC_DEGAS_PROJECT) || \
+	defined(CONFIG_AFC_CHARGER_MODE) || defined(CONFIG_MACH_KLTE_USC) || defined(CONFIG_MACH_KLIMT_VZW)
 	/* if the battery status was full, and SOC wasn't 100% yet,
 		then ignore FG SOC, and report (previous SOC +1)% */
 	if (battery->status != POWER_SUPPLY_STATUS_FULL) {
@@ -2406,17 +2405,17 @@ continue_monitor:
 			"%s: battery->stability_test(%d), battery->eng_not_full_status(%d)\n",
 			__func__, battery->stability_test, battery->eng_not_full_status);
 #endif
-	 if (battery->store_mode && !poweroff_charging && (battery->cable_type != POWER_SUPPLY_TYPE_BATTERY)) {
+	if (battery->store_mode && battery->cable_type != POWER_SUPPLY_TYPE_BATTERY) {
 
 		dev_info(battery->dev,
 			"%s: @battery->capacity = (%d), battery->status= (%d), battery->store_mode=(%d)\n",
 			__func__, battery->capacity, battery->status, battery->store_mode);
 
-		if ((battery->capacity >= STORE_MODE_CHARGING_MAX) && (battery->status == POWER_SUPPLY_STATUS_CHARGING)) {
+		if ((battery->capacity >= 35) && (battery->status == POWER_SUPPLY_STATUS_CHARGING)) {
 			battery->status = POWER_SUPPLY_STATUS_DISCHARGING;
 			sec_bat_set_charge(battery, false);
 		}
-		if ((battery->capacity <= STORE_MODE_CHARGING_MIN) && (battery->status == POWER_SUPPLY_STATUS_DISCHARGING)) {
+		if ((battery->capacity <= 30) && (battery->status == POWER_SUPPLY_STATUS_DISCHARGING)) {
 			battery->status = POWER_SUPPLY_STATUS_CHARGING;
 			sec_bat_set_charge(battery, true);
 		}
@@ -3637,8 +3636,8 @@ static int sec_bat_get_property(struct power_supply *psy,
 			}
 
 #if defined(CONFIG_MACH_VIENNAEUR) || defined(CONFIG_MACH_VIENNAVZW) || defined(CONFIG_MACH_VIENNAKOR) || defined(CONFIG_MACH_V2) || \
-	defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT) || defined(CONFIG_MACH_S3VE3G_EUR) || \
-	defined(CONFIG_AFC_CHARGER_MODE) || defined(CONFIG_MACH_KLTE_USC) || defined(CONFIG_MACH_KLIMT_VZW) || defined(CONFIG_SEC_DEGAS_PROJECT)
+	defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT) || \
+	defined(CONFIG_AFC_CHARGER_MODE) || defined(CONFIG_MACH_KLTE_USC) || defined(CONFIG_MACH_KLIMT_VZW)|| defined(CONFIG_SEC_DEGAS_PROJECT)
 			if (battery->status == POWER_SUPPLY_STATUS_FULL &&
 				battery->capacity != 100) {
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
@@ -3725,8 +3724,8 @@ static int sec_bat_get_property(struct power_supply *psy,
 		}
 #else
 #if defined(CONFIG_MACH_VIENNAEUR) || defined(CONFIG_MACH_VIENNAVZW) || defined(CONFIG_MACH_VIENNAKOR) || defined(CONFIG_MACH_V2) || \
-	defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT) || defined(CONFIG_MACH_S3VE3G_EUR) || \
-	defined(CONFIG_AFC_CHARGER_MODE) || defined(CONFIG_MACH_KLTE_USC) || defined(CONFIG_MACH_KLIMT_VZW) || defined(CONFIG_SEC_DEGAS_PROJECT)
+	defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT) || \
+	defined(CONFIG_AFC_CHARGER_MODE) || defined(CONFIG_MACH_KLTE_USC) || defined(CONFIG_MACH_KLIMT_VZW)|| defined(CONFIG_SEC_DEGAS_PROJECT)
 		val->intval = battery->capacity;
 #else
 		/* In full-charged status, SOC is always 100% */
