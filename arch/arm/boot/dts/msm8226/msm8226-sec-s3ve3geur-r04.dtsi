@@ -675,18 +675,6 @@
 			status = "okay";
 		};
 	};
-
-	rpm-regulator-ldoa27 {
-		status = "okay";
-		pm8226_l27: regulator-l27 {
-			regulator-name = "8226_l27";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			qcom,init-voltage = <1800000>;
-			qcom,pull-down-enable = <1>;
-			status = "okay";
-		};
-	};
 };
 
 &mdss_mdp {
