@@ -638,8 +638,9 @@
 };
 
 &pm8226_chg {
+	status = "ok";
 	qcom,battery-data = <&mtp_batterydata>;
-	qcom,cool-bat-decidegc = <(-50)>;
+	qcom,cool-bat-decidegc = <(-100)>;
 	qcom,warm-bat-decidegc = <700>;
 };
 
