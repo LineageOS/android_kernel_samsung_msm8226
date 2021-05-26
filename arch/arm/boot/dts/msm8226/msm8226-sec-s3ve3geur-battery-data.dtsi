@@ -64,7 +64,7 @@
 		battery,recharging_total_time = <5400>;
 		battery,charging_reset_time = <0>;
 
-		battery,swelling_full_check_current = <150>;
+		battery,swelling_full_check_current = <100>;
 		battery,swelling_high_rechg_voltage = <4150>;
 		battery,swelling_low_rechg_voltage = <4050>;
 
@@ -79,7 +79,7 @@
 			battery,input_current_limit = <500 500 500 1000 500 1000 1000 500 500 1000 650 1000 1000 500 500 300 1000 1000 300 1000 1000 500 500>;
 			battery,fast_charging_current = <500 0 500 1000 500 1000 1000 500 0 1000 750 1000 1000 (-1) 500 300 1000 1000 300 1000 1000 0 0>;
 			battery,full_check_current_1st = <200 0 200 200 200 200 200 200 0 200 200 200 200 0 200 200 200 200 200 200 200 0 0>;
-			battery,full_check_current_2nd = <150 0 150 150 150 150 150 150 0 150 150 150 150 0 150 150 150 150 150 150 150 0 0>;
+			battery,full_check_current_2nd = <100 0 100 100 100 100 100 100 0 100 100 100 100 0 100 100 100 100 100 100 100 0 0>;
 		};
 	};
 };
