@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -315,10 +315,8 @@ enum RGB_LEDS{
 };
 
 static u8 wled_debug_regs[] = {
-	/* brightness registers */
-	0x40, 0x41, 0x42, 0x43, 0x44, 0x45,
 	/* common registers */
-	0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+	0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4d, 0x4e, 0x4f,
 	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59,
 	/* LED1 */
 	0x60, 0x61, 0x62, 0x63, 0x66,
@@ -366,7 +364,6 @@ struct pwm_config_data {
 	int	*old_duty_pcts;
 	u8	mode;
 	u8	default_mode;
-	bool pwm_enabled;
 	bool use_blink;
 	bool blinking;
 };
@@ -1208,15 +1205,53 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 				led->flash_cfg->flash_on = true;
 			}
 			break;
+			}
+		for (i = 0; i < led->num_leds; i++) {
+			if (led_array[i].flash_cfg->flash_reg_get) {
+				rc = regulator_enable(
+					led_array[i].flash_cfg->flash_wa_reg);
+				if (rc) {
+					dev_err(&led->spmi_dev->dev,
+						"Flash_wa regulator enable failed(%d)\n",
+								rc);
+					return rc;
+				}
+
+				rc = regulator_enable(
+					led_array[i].flash_cfg->\
+					flash_boost_reg);
+				if (rc) {
+					dev_err(&led->spmi_dev->dev,
+						"Regulator enable failed(%d)\n",
+									rc);
+					return rc;
+				}
+				led->flash_cfg->flash_on = true;
+			}
+			break;
+			}
+#endif
+	    for (i = 0; i < led->num_leds; i++) {
+#ifdef SAMSUNG_USE_EXTERNAL_CHARGER
+		qpnp_flash_reg_en(led, true);
+#else
+		if (led_array[i].flash_cfg->flash_reg_get) {
+		    rc = regulator_enable(
+			    led_array[i].flash_cfg->\
+			    flash_boost_reg);
+		    if (rc) {
+			dev_err(&led->spmi_dev->dev,
+				"Regulator enable failed(%d)\n",
+				rc);
+			return rc;
+		    }
+#endif
+		    led->flash_cfg->flash_on = true;
+#ifndef SAMSUNG_USE_EXTERNAL_CHARGER
 		}
 #endif
-#ifdef SAMSUNG_USE_EXTERNAL_CHARGER
-	    for (i = 0; i < led->num_leds; i++) {
-			qpnp_flash_reg_en(led, true);
-		    led->flash_cfg->flash_on = true;
-			break;
+		break;
 	    }
-#endif
 	}
 
 	return 0;
@@ -1257,6 +1292,7 @@ regulator_turn_off:
 						return rc;
 					}
 				}
+
 		    
 #endif
 #ifdef SAMSUNG_USE_EXTERNAL_CHARGER
@@ -1836,19 +1872,15 @@ static int qpnp_rgb_set(struct qpnp_led_data *led)
 			return rc;
 		}
 
-		if (led->rgb_cfg->pwm_cfg->pwm_enabled) {
-			pwm_disable(led->rgb_cfg->pwm_cfg->pwm_dev);
-			led->rgb_cfg->pwm_cfg->pwm_enabled = 0;
-		}
-
 		rc = pwm_enable(led->rgb_cfg->pwm_cfg->pwm_dev);
-		if (!rc)
-			led->rgb_cfg->pwm_cfg->pwm_enabled = 1;
+		if (rc < 0) {
+			dev_err(&led->spmi_dev->dev, "pwm enable failed\n");
+			return rc;
+		}
 	} else {
 		led->rgb_cfg->pwm_cfg->mode =
 			led->rgb_cfg->pwm_cfg->default_mode;
 		pwm_disable(led->rgb_cfg->pwm_cfg->pwm_dev);
-		led->rgb_cfg->pwm_cfg->pwm_enabled = 0;
 		rc = qpnp_led_masked_write(led,
 			RGB_LED_EN_CTL(led->base),
 			led->rgb_cfg->enable, RGB_LED_DISABLE);
@@ -1888,10 +1920,7 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 #else
 	led->cdev.brightness = value;
 #endif
-	if (led->in_order_command_processing)
-		queue_work(led->workqueue, &led->work);
-	else
-		schedule_work(&led->work);
+	schedule_work(&led->work);
 }
 
 static void __qpnp_led_work(struct qpnp_led_data *led,
@@ -2063,7 +2092,7 @@ static void qpnp_led_turn_off(struct qpnp_led_data *led)
 static int __devinit qpnp_wled_init(struct qpnp_led_data *led)
 {
 	int rc, i;
-	u8 num_wled_strings, val = 0;
+	u8 num_wled_strings;
 
 	num_wled_strings = led->wled_cfg->num_strings;
 
@@ -2135,10 +2164,10 @@ static int __devinit qpnp_wled_init(struct qpnp_led_data *led)
 
 	/* program current sink */
 	if (led->wled_cfg->cs_out_en) {
-		for (i = 0; i < led->wled_cfg->num_strings; i++)
-			val |= 1 << i;
 		rc = qpnp_led_masked_write(led, WLED_CURR_SINK_REG(led->base),
-			WLED_CURR_SINK_MASK, (val << WLED_CURR_SINK_SHFT));
+			WLED_CURR_SINK_MASK,
+			(((1 << led->wled_cfg->num_strings) - 1)
+			<< WLED_CURR_SINK_SHFT));
 		if (rc) {
 			dev_err(&led->spmi_dev->dev,
 				"WLED curr sink reg write failed(%d)\n", rc);
