@@ -933,6 +933,7 @@ config CHECK_SIMSLOT_COUNT
 config CHECK_SIMSLOT_COUNT_GPIO
 	int "Number simslot count gpio"
 	depends on CHECK_SIMSLOT_COUNT
+	default 0
 	help
 	  Provides Number of SS/DS detect GPIO value.
 
